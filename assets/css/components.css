@@ -1,0 +1,5529 @@
+/* =============================================================
+   Secret Level — 组件层
+   玻璃材质 / 按钮 / Badge / Tabs / 跑马灯 / Header / Footer / 卡片
+   ============================================================= */
+
+:root {
+  --grain-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* ---------- 效果 05：液态玻璃（三层 DOM + SVG 位移滤镜） ---------- */
+
+.glass-surface-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.07), 0 0 16px rgba(0, 0, 0, 0.02);
+  isolation: isolate;
+}
+/* 磨玻璃底被裁成一条窄带的坑（第十六轮实测）
+   —— 页面里这层是 <span>，默认 display:inline，盒子只有一行字那么高：
+      按钮实际 148x64，而 wrapper 只有 148x25；再配上这里的 overflow:hidden，
+      亚克力底就只剩中间一条横带，看着像没有底。
+   修法：凡是包在 <a>/<button> 里、或自带 rounded-full 的实例，一律 inline-flex，
+   让盒子真正裹住整颗按钮。 */
+.btn-link > .glass-surface-wrapper,
+.btn > .glass-surface-wrapper,
+.glass-surface-wrapper.rounded-full {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.glass-surface-effect {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  backdrop-filter: blur(8px) brightness(1.2) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) brightness(1.2) saturate(1.2);
+  background: rgba(255, 255, 255, 0.06);
+  filter: url(#glass-distortion);
+}
+/* 无滤镜支持时降级 */
+.no-glassfilter .glass-surface-effect { filter: none; }
+
+.glass-surface-content {
+  position: relative;
+  z-index: 1;
+  border-radius: inherit;
+}
+.glass-surface-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  mix-blend-mode: overlay;
+  background: linear-gradient(12deg, rgba(255,255,255,0.1) 10%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 90%);
+  -webkit-mask-image: linear-gradient(#fff 0 0), linear-gradient(#fff 0 0);
+  mask-image: linear-gradient(#fff 0 0), linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px) brightness(1.2) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) brightness(1.2) saturate(1.2);
+}
+
+/* ---------- 效果 06：Sheen 扫光 ---------- */
+
+@property --sheen-pos {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+.sheen { position: relative; overflow: hidden; }
+.sheen::before {
+  --sheen-pos: 0;
+  content: "";
+  position: absolute;
+  width: 130%;
+  height: 130%;
+  top: -15%;
+  left: -15%;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    to top right,
+    transparent,
+    rgba(255, 255, 255, calc(0.25 - 0.5 * max(var(--sheen-pos) - 0.5, 0.5 - var(--sheen-pos))))
+      calc(var(--sheen-pos) * 100%),
+    transparent
+  );
+  transition: --sheen-pos 2s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.sheen:hover::before,
+a:hover .sheen::before,
+.group:hover .sheen::before,
+.sheen.is-hover-active::before {
+  --sheen-pos: 1;
+}
+
+/* ---------- 按钮 ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  line-height: 1;
+  position: relative;
+  transition: opacity 0.15s linear, color 0.15s linear;
+}
+.btn-sm { height: 4rem; padding-inline: 1.6rem; font-size: 12px; }
+.btn-default { height: 5.6rem; padding-inline: 2.4rem; font-size: 12px; }
+.btn-lg { height: 6.4rem; padding-inline: 3.2rem; font-size: 14px; }
+.btn-icon-lg { width: 6.4rem; height: 6.4rem; padding: 0; }
+@media (min-width: 48rem) {
+  .btn-icon-lg { width: 8rem; height: 8rem; }
+}
+
+.btn .label {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.btn-glass {
+  color: var(--foreground);
+}
+.btn-glass:hover { opacity: 0.85; }
+
+.btn-ghost {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+  height: auto;
+  padding: 0;
+}
+.btn-ghost:hover { color: var(--accent); text-decoration: none; }
+
+.btn-accent {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.btn-accent:hover { opacity: 0.85; }
+
+/* 图标方块 */
+.icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: calc(var(--radius) * 0.5);
+  background: rgba(255, 255, 255, 0.1);
+}
+.icon-box svg { width: 60%; height: 60%; fill: currentColor; }
+.btn-lg .icon-box { width: 2.4rem; height: 2.4rem; }
+
+/* 按钮里的三角（#triangle 默认尖朝上）顺时针转 90°，
+   让尖角正对着右边，读作「下一步 / 进入」。
+   注意别误伤导航指针 .nav-indicator 里的同名符号 —— 它自带 rotate(-90deg)。 */
+.icon-box svg.ic-tri-right,
+svg.ic-tri-right { transform: rotate(90deg); }
+
+/* ---------- Badge ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 2.8rem;
+  padding-inline: 1.2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-strong);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+}
+.badge-dot {
+  width: 0.6rem; height: 0.6rem; border-radius: 9999px;
+  background: var(--accent); flex: none;
+}
+
+/* ---------- 集合页页头：小字【精选作品】 ----------
+   原来这里是 type-heading-xl 的大号「品牌」，视觉上压过作品本身。
+   改成小字 kicker 后标题层级仍在（保留 <h1>，屏幕阅读器不受影响），
+   只是视觉重量降下来，让下面的两行定位语成为页头主角。 */
+.collection-kicker {
+  display: inline-block;
+  font-family: var(--font-cjk);
+  font-weight: 700;          /* 思源粗体 */
+  font-size: 1.3rem;
+  line-height: 1.4;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* 品牌页页头：字号 / 行高 / 字距全部交给 type-heading-xl 与 type-base
+   —— 与剧照页用的是同一套工具类，所以两页排版天然一致（第十六轮需求）。
+   只有两点例外：type-heading 系列是 Anton 展示体，字库里没有汉字，
+   中文会掉到系统兜底字形、粗细也和全站不符，所以这里把 family 拉回思源。 */
+body[data-collection="brand"] .js-collection-title {
+  font-family: var(--font-cjk);
+  font-weight: 700;
+}
+body[data-collection="brand"] .js-collection-intro,
+body[data-collection="brand"] .js-collection-intro-2 {
+  font-family: var(--font-cjk);
+  font-weight: 300;
+}
+@media (min-width: 48rem) { .collection-kicker { font-size: 1.5rem; } }
+/* 定位语：思源细体 */
+.collection-intro-lead,
+.collection-intro-2 {
+  font-family: var(--font-cjk);
+  font-weight: 300;
+  line-height: 1.9;
+  letter-spacing: 0.04em;
+}
+.collection-intro-lead { color: rgba(255, 255, 255, 0.85); }
+.collection-intro-2 { color: #fff; }
+
+/* 页脚定位语：多行（AXIE 的初心 / 把TVC的成本降下来 / …），要保留换行 */
+.site-footer [data-i18n="footer.tagline"] {
+  white-space: pre-line;
+  font-family: var(--font-cjk);
+  font-weight: 300;
+  line-height: 1.9;
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 50;
+  /* 第三十一轮：顶部整条上移（2rem → 1.2rem）。
+     右上角语言浮标是 fixed 的，它的 top 必须跟着这套值一起改，
+     否则会与导航栏错开半个身位（见 shell.css 的 .lang-dock）。 */
+  padding-top: 1.2rem;
+  pointer-events: none;
+  opacity: 0;
+}
+.site-header > * { pointer-events: auto; }
+.site-header.is-ready { opacity: 1; transition: opacity 0.2s linear; }
+
+.header-inner { position: relative; }
+
+.logotype {
+  display: block;
+  width: 12rem;
+  color: var(--foreground);
+}
+@media (min-width: 48rem) { .logotype { width: 14rem; } }
+.logotype svg { width: 100%; height: auto; fill: currentColor; }
+
+/* ---------- 第十九轮：胶囊跑道形导航组件（磨砂玻璃拟态 / 悬浮 UI） ----------
+   整条导航是一枚「跑道形（stadium）胶囊面板」：
+     面板  半透明深炭灰 rgba(14,16,18,0.46) + 顶亮底暗的极淡渐变（不是实色）
+     材质  backdrop-filter: blur(20px) saturate(140%) —— 背景模糊穿透
+     边    1px 冷白描边 + 内侧 1px 高光 + 外侧一圈很淡的辉光（细淡辉光描边）
+     悬浮  0 18px 44px 的深投影，让整条像浮在画面之上
+   面板本身就是唯一那层底，所以导航项不再各自垫一块（见下方 .nav-item），
+   否则又是两层底叠在一起。想调深浅只改 --nav-panel-alpha。 */
+:root { --nav-panel-alpha: 0.46; }
+.header-nav {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 4rem;                /* 第二十一轮：4.8 → 4.0rem，整条收窄一圈 */
+  padding: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background-color: rgba(14, 16, 18, var(--nav-panel-alpha));
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.46),
+    0 0 22px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+/* 玻璃层是 navigation 的直接子元素：同样让位，别再叠出第二层底 */
+.header-nav > .glass-surface-effect {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  filter: none;
+}
+.header-nav .nav-item { height: 3.2rem; }   /* 第二十一轮：4 → 3.2rem */
+
+/* ---------- 导航每一项：只管文字，不再各自垫一块底 ----------
+   第十九轮：外层胶囊面板已经承担了「磨砂玻璃底」，
+   每一项再垫一块就成了两层底（上一版就是这样被判定"不像透明"的）。
+   现在项本身默认**完全透明**，只在鼠标移上去时透出一点点白，
+   作为"这里可以点"的落点，落点强度由 --nav-item-hover-alpha 控制。
+   宽度统一仍由 JS 量出「本语言下最宽那一项」写入 --nav-item-w
+   （见 app.js equalizeNavItems），这里只负责消费它。 */
+:root {
+  --nav-item-hover-alpha: 0.07;
+  --cta-pill-alpha: 0.30;
+}
+.header-nav .nav-item {
+  background-image: none;
+  background-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  /* 大小一致 + 文字排版整洁：等宽、居中、强制单行、行高归一 */
+  min-width: var(--nav-item-w, 0px);
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1;
+  text-align: center;
+}
+/* 悬停 / 当前项：白色文字 → 荧光黄高亮（外加一点辉光，读作"选中"）。
+   注意：下面还有一条通用的 `.nav-item:hover { opacity:.75 }`，
+   它比这里的选择器短，所以这里必须显式把 opacity 拉回 1，
+   否则悬停时反而变淡，和"高亮"背道而驰。 */
+.header-nav .nav-item:hover,
+.header-nav .nav-item.is-current,
+.header-nav .nav-item.is-current:hover {
+  opacity: 1;
+  color: var(--accent);
+  text-shadow: 0 0 14px rgba(227, 255, 57, 0.45);
+  background-color: rgba(255, 255, 255, var(--nav-item-hover-alpha));
+}
+
+/* 联系我们（header CTA）：同款胶囊，透明度 70%
+   —— 同样是单层透明色块，不再用白渐变 + 强饱和模糊（见上方说明）。
+      高度对齐到导航项的 4rem，整条顶部栏是「七颗等高胶囊」，
+      区别只在于它更实一档（alpha 0.30 vs 0.10）。 */
+.js-header-cta .btn-link > .glass-surface-wrapper {
+  height: 3.2rem;             /* 与导航项等高：第二十一轮一起从 4rem 收下来 */
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-image: none;
+  background-color: rgba(255, 255, 255, var(--cta-pill-alpha));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.js-header-cta .btn-link .glass-surface-content { height: 100%; }
+/* 里面原本还有两层独立的磨玻璃薄片（effect + content.glass），
+   留着会和外层胶囊叠成三重，统统让位给外层那一层。 */
+.js-header-cta .btn-link .glass-surface-effect,
+.js-header-cta .btn-link .glass-surface-content {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  filter: none;
+}
+
+.nav-item {
+  position: relative;
+  /* 关键：必须是 inline-flex，否则 <a> 作为 flex 子项会被块化成 display:block，
+     上面的 align-items 全部失效，文字会贴着胶囊顶部（实测上留 -3px / 下留 27px）。
+     第二十一轮：padding 1.2 → 1.0rem，整体收一圈。 */
+  display: inline-flex;
+  align-items: center;
+  height: 3.2rem;
+  padding-inline: 1rem;
+  border-radius: 9999px;
+  font-family: var(--font-cjk);   /* 中文走思源黑体，不再掉到默认衬线/展示体 */
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 500;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.75);
+  transition: opacity 0.15s linear, color 0.15s linear;
+}
+.nav-item:hover { opacity: 0.75; }
+.nav-item.is-current { color: var(--accent); opacity: 1; }
+
+.nav-indicator {
+  position: absolute;
+  bottom: -0.4rem;
+  left: 0;
+  width: 0.6rem;
+  height: 0.6rem;
+  color: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+}
+.nav-indicator svg { width: 100%; height: 100%; fill: currentColor; transform: rotate(-90deg); }
+
+.nav-hover-box {
+  position: absolute;
+  top: 0; left: 0;
+  width: 0; height: 0;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s linear;
+}
+
+@media (max-width: 47.99rem) {
+  .header-nav { display: none; }
+}
+
+/* ---------- 移动抽屉 ---------- */
+
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s var(--ease-expo-out), visibility 0.3s;
+}
+.drawer.is-open { opacity: 1; visibility: visible; }
+.drawer-panel {
+  padding: calc(var(--header-safe-area) + 4rem) 2rem 4rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  overflow-y: auto;
+}
+.drawer-link {
+  font-family: var(--font-heading);
+  font-size: 4.8rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  padding-block: 1.2rem;
+  border-bottom: 4px solid var(--border);
+}
+/* 抽屉里的大字链接：中文时 Anton 没有字形，会掉到系统字体导致大小不一，
+   这里换思源黑体 500；英文状态下仍保留 Anton 的展示体观感。
+   （attrs: 抽屉链接都带 data-i18n，包括没有对应键的 Liquid Engine） */
+html[data-lang="zh"] .drawer-link[data-i18n] { font-family: var(--font-cjk); font-weight: 500; }
+.drawer-link:hover { color: var(--accent); }
+.drawer-close { align-self: flex-start; }
+
+/* ---------- 首页全屏滚动 ---------- */
+
+.index-scroll { position: relative; }
+.snap-item {
+  position: relative;
+  width: 100%;
+  height: 100lvh;
+  overflow: hidden;
+}
+.snap-item-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100lvh;
+  will-change: transform, opacity;
+}
+.snap-media { position: absolute; inset: 0; z-index: 0; }
+.snap-content { position: relative; z-index: 2; }
+
+/* =============================================================
+   首页排版：文案**全部左对齐**，垂直方向**整体居中**
+   —— 左侧要给单帧画廊让出一条走道（rail 占地随断点 20/24/32rem），
+      所以文案从 rail 右缘起排，左边界 = --home-text-start。
+   —— 垂直方向：不再贴底（原 flex-end + 大 padding-bottom），
+      改为 flex 居中且上下 padding 归零，整块文案向上抬到画面中央。
+   ============================================================= */
+body[data-page="home"] .snap-item-inner { justify-content: center; }
+body[data-page="home"] .snap-content {
+  padding-bottom: 0;
+  padding-top: 0;
+  text-align: left;
+}
+body[data-page="home"] .snap-item-inner .grid { justify-content: flex-start; }
+
+/* 文案列：整块落在画面左侧一栏内，**块内元素严格左对齐**
+   实测 @1600：rail 占 0–320，文案栏从 368 起排，左对齐 ✔ */
+body[data-page="home"] .snap-content [class*="col-span-full"] {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  margin-left: var(--home-text-start, 36rem);
+  margin-right: auto;
+  width: 100%;
+  max-width: min(var(--home-text-width, 68rem), calc(100% - var(--home-text-start, 36rem) - 2.4rem));
+}
+/* 徽标 / 客户行 / 标题 / 正文 / 按钮行 全部左对齐堆叠 */
+body[data-page="home"] .snap-content .badge,
+body[data-page="home"] .snap-content .type-heading-sm,
+body[data-page="home"] .snap-content h1,
+body[data-page="home"] .snap-content h2,
+body[data-page="home"] .snap-content p { align-self: flex-start; }
+body[data-page="home"] .snap-content .type-heading-sm { margin-bottom: 0.8rem; }
+body[data-page="home"] .snap-content .flex.items-center { justify-content: flex-start; }
+/* 左对齐后正文行宽收紧，避免长行一路拉到屏幕右缘 */
+body[data-page="home"] .snap-content .snap-sub-accent { max-width: 46ch; }
+
+/* 文案栏几何：文案**紧贴左边界线**排布。
+   左侧画廊（rail）是一条窄胶片条（12/14/16rem），文案从它右缘起排即可，
+   不再额外留出大段空隙 —— 这样视觉上文字就是"贴着左边界线"的。
+   gutter 本身已有内边距，所以这里给一个很小的附加偏移。 */
+body[data-page="home"] {
+  --home-text-start: 17rem;
+  --home-text-width: 94rem;
+}
+@media (max-width: 63.99rem) {
+  /* 小屏画廊隐藏，文案从常规 gutter 起排 */
+  body[data-page="home"] { --home-text-start: 0rem; --home-text-width: 100%; }
+  body[data-page="home"] .snap-content [class*="col-span-full"] {
+    margin-left: 0;
+  }
+}
+@media (min-width: 64rem) {
+  /* 9.5rem 画廊 + 间隙 + 向右平移量 */
+  body[data-page="home"] { --home-text-start: 20rem; --home-text-width: 100rem; }
+}
+@media (min-width: 80rem) {
+  /* 11rem 画廊 + 间隙 + 向右平移量（第十七轮：18 → 22rem） */
+  body[data-page="home"] { --home-text-start: 22rem; --home-text-width: 106rem; }
+}
+
+/* 声音开关已按要求移除：视频区域内不再出现任何声音按钮。
+   首页也不再有 .js-audio-toggle 宿主，这里做兜底隐藏。 */
+body[data-page="home"] .sound-toggle { display: none !important; }
+
+/* ---------- 卡片（作品） ---------- */
+
+.work-card { position: relative; display: block; }
+.work-card-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.5);
+  background: var(--dark-shade);
+  aspect-ratio: 4 / 3;
+  /* 悬浮反馈：整块（视频）略微缩小 + 微微倾斜，移开后平滑还原。
+     transform 写在这一层而不是里面的 canvas/video —— 让容器连同
+     圆角边框一起转，才是「卡片倾斜」而不是「画面缩放」。 */
+  transform: scale(1) rotate(0deg);
+  transform-origin: center center;
+  transition: transform 0.55s var(--ease-expo-out), box-shadow 0.55s var(--ease-expo-out);
+  will-change: transform;
+}
+/* 原来这里是 hover 放大到 1.08，会和「缩小 0.94」互相抵消，改成中性 */
+.work-card-media .scene canvas { transition: transform 1.2s var(--ease-expo-out); transform: scale(1.02); }
+.work-card:hover .work-card-media .scene canvas { transform: scale(1.02); }
+
+.work-card:hover .work-card-media,
+.work-card:focus-within .work-card-media {
+  transform: scale(0.94) rotate(-1.1deg);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.5);
+}
+@media (prefers-reduced-motion: reduce) {
+  .work-card-media { transition: none; }
+  .work-card:hover .work-card-media,
+  .work-card:focus-within .work-card-media { transform: none; }
+}
+.work-card-meta {
+  padding-top: 1.6rem;
+  text-align: center;
+}
+.work-card-client {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.4rem;
+}
+.work-card-title {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 48rem) { .work-card-title { font-size: 3.2rem; } }
+.work-card:hover .work-card-title { color: var(--accent); }
+
+/* ---------- 跑马灯 ---------- */
+
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marqueeLoop var(--marquee-duration, 40s) linear infinite;
+}
+.marquee > * { white-space: nowrap; display: inline-flex; }
+@keyframes marqueeLoop {
+  0%   { transform: translate(0); }
+  to   { transform: translate3d(var(--marquee-content-width), 0, 0); }
+}
+.logotype-horizontal-opacity-filter {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #fff 15% 85%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #fff 15% 85%, transparent 100%);
+}
+.logotype-rail {
+  display: flex;
+  align-items: center;
+  gap: 4.8rem;
+  padding-right: 4.8rem;
+}
+@media (min-width: 48rem) {
+  .logotype-rail { gap: 8rem; padding-right: 8rem; }
+}
+.logotype-item {
+  width: 8rem;
+  height: 4rem;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+@media (min-width: 48rem) {
+  .logotype-item { width: 12rem; height: 6rem; font-size: 2.4rem; }
+}
+.marquee-viewport {
+  overflow: hidden;
+  /* 2026-09-27：跑马灯要「不受鼠标影响」——
+     1) 去掉原来的 :hover 暂停
+     2) 整块不吃指针事件（这里没有任何可点元素，鼠标划过连 hover 态都不触发） */
+  pointer-events: none;
+}
+
+/* ---------- Tabs ----------
+   第三十一轮：胶囊整体压扁一档（4.8/5.6 → 4/4.4rem），
+   并保证「网格 / 轮播 / 列表」三档文字都在胶囊里垂直居中：
+   触发器固定 line-height:1 + inline-flex 居中，
+   再把选中态的 1px 描边改成常驻的透明描边 —— 否则选中/未选中之间
+   会因多出 1px 边框而让文字上下抖 0.5px。 */
+.tablist {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 4rem;
+  padding: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.02);
+}
+@media (min-width: 48rem) { .tablist { height: 4.4rem; } }
+.tab-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding-inline: 1.6rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.15s linear, background-color 0.15s linear;
+}
+.tab-trigger:hover { color: var(--accent); }
+.tab-trigger[aria-selected="true"] {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
+}
+.tabpanel[hidden] { display: none; }
+
+/* ---------- 列表视图（第三十二轮再改） ----------
+   每个案例一条：左侧「项目大标题」/ 右侧「备注标签」，白字；
+   上下 1px 细线做案例分隔。
+   鼠标悬停 → 整条变成**橙黄长条**、文字转纯黑；
+   指针一进条就浮出一枚静音的视频预览窗口（不等计时器），
+   它跟着鼠标左右移动，且始终至少 55% 压在长条里。
+   逻辑在 list.js（.js-work-list-row + .list-row-preview）。 */
+.works-list {
+  display: block;
+  /* 第三十八轮（用户第三条「丝滑跟随」）：预览窗的**宿主**从「某一行」改成了列表本体
+     —— 每一行都是独立的坐标原点，窗口在行之间搬家时会瞬移；
+     挂在列表上之后它在同一套坐标里连续移动，跨行也能平滑滑过去。
+     所以这里必须建立定位上下文。 */
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+.list-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2.4rem;
+  padding: 2.6rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  color: #fff;
+  /* 第三十二轮：这里原来是 overflow: hidden（把预览窗口裁在长条内）。
+     现在要求「窗口大一些、可以压出长条一点」，所以放开裁切，
+     「不整块跑出」改由 list.js 的 place() 用夹取区间兜底。 */
+  overflow: visible;
+  isolation: isolate;
+  transition: background-color 0.28s linear, color 0.28s linear;
+}
+.list-row:hover,
+.list-row:focus-visible {
+  background-color: var(--accent-warm);
+  color: #0a0c0d;
+}
+.list-row-title {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-heading);
+  font-size: 2.6rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  /* 第三十五轮（用户第一条）：右侧标签原地不动，只有左侧这行字
+     向右"丝滑"挪一小段 —— 用 expo-out，起步快、收尾稳，读起来像被拉开。 */
+  transition: transform 0.42s var(--ease-expo-out);
+}
+@media (min-width: 48rem) { .list-row-title { font-size: 4rem; } }
+.list-row:hover .list-row-title,
+.list-row:focus-visible .list-row-title { transform: translate3d(1.8rem, 0, 0); }
+.list-row-tags {
+  position: relative;
+  z-index: 2;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+.list-row-tag {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.5rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: 9999px;
+  opacity: 0.62;
+  white-space: nowrap;
+  transition: opacity 0.28s linear;
+}
+.list-row:hover .list-row-tag { opacity: 0.95; }
+html[data-lang="zh"] .list-row-tag { font-family: var(--font-cjk); letter-spacing: 0.06em; }
+
+/* 缩小版视频预览窗口（静音、无控件、不接指针事件）
+   第三十五轮（用户第一条「视频预览窗口在对应的作品橙黄色长条内上下左右移动」）：
+   第三十二轮它被加大到「比长条还高」（上下各压出 3.6rem），是**溢出**长条的；
+   那一轮收进长条内 —— 高度取行高的 68%，四周各留 6px 余量。
+   第三十七轮（用户第二条「视频预览窗口大一些可以超出橙黄色长条一些，不要描边」）：
+   回到**溢出**设计，但幅度可控 —— 高度取 `100% + 3.2rem`
+   （97px 的行 → 129px 的窗，上下各压出 4~28px），
+   四周的夹取由 list.js 的 place() 算（`REACH = 2.8rem`）：
+   窗永远压出长条 4~28px，且纵向还能上下走 24px（不是钉死的）。
+   「不要描边」= border 归 0 —— 投影（box-shadow）留着，它是"浮起来"不是描边。
+   第三十八轮（用户第三条「跟随鼠标移动的时候不要出现卡顿，丝滑跟随移动切换」）：
+   宿主从「那一行」改成 **.works-list 本体**（见上面 .works-list 的 position: relative）——
+     ① 跨行时窗口不再被搬进另一个坐标原点（那是瞬移的根因），
+        它一直在同一套坐标里移动，于是切行也能平滑滑过去；
+     ② 高度不再用 `calc(100% + 3.2rem)`（100% 现在是整个列表的高），
+        改由 list.js 按**当前行高**写成 px（行高 + 3.2rem）；
+     ③ 透明度不再依赖 `.list-row.is-previewing`（窗口已不在行内），
+        改由窗口自己的 `.is-on` 控制。 */
+.list-row-preview {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  height: 12.9rem;   /* 初值；list.js 每个新行都会覆写成「行高 + 3.2rem」 */
+  aspect-ratio: 16 / 9;
+  border-radius: 1.4rem;
+  overflow: hidden;
+  border: 0;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+  background: #000;
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 0.24s linear;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* 双缓冲：两层叠在一起，换作品时新的淡入、旧的淡出 */
+.list-row-preview-el {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.32s linear;
+}
+.list-row-preview-el.is-on { opacity: 1; }
+/* 第三十八轮：窗口已不在行内，显隐改由它自己的 .is-on 管（list.js 负责加/去） */
+.list-row-preview.is-on { opacity: 1; }
+
+/* Carousel 视图 */
+.carousel-viewport {
+  display: flex;
+  gap: 2.4rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 2.4rem;
+  scrollbar-width: none;
+}
+.carousel-viewport::-webkit-scrollbar { display: none; }
+.carousel-slide {
+  flex: 0 0 78%;
+  scroll-snap-align: center;
+}
+@media (min-width: 48rem) {
+  .carousel-slide { flex: 0 0 46%; }
+  .carousel-viewport { gap: 4rem; }
+}
+@media (min-width: 64rem) {
+  .carousel-slide { flex: 0 0 32%; }
+}
+
+/* ---------- 页面转场遮罩 ---------- */
+
+.transition-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100lvh;
+  z-index: 40;
+  background: var(--dark-shade);
+  cursor: progress;
+  pointer-events: none;
+}
+.transition-overlay.is-home { background: #000; }
+html.is-booting .transition-overlay { opacity: 1; }
+html:not(.is-booting) .transition-overlay { opacity: 0; visibility: hidden; }
+
+/* ---------- 项目详情页 ---------- */
+
+.project-hero {
+  position: relative;
+  height: 88vh;
+  min-height: 40vw;
+  max-height: 100vh;
+  overflow: hidden;
+}
+@media (max-width: 47.99rem) { .project-hero { height: 60vh; min-height: 0; } }
+
+.project-header-gradient-fade {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 12vh;
+  pointer-events: none;
+  z-index: 5;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0) 0%, rgba(0,0,0,0.05) 12%, rgba(0,0,0,0.12) 24%, rgba(0,0,0,0.22) 34%,
+    rgba(0,0,0,0.34) 44%, rgba(0,0,0,0.47) 53%, rgba(0,0,0,0.6) 61%, rgba(0,0,0,0.71) 69%,
+    rgba(0,0,0,0.8) 76%, rgba(0,0,0,0.87) 82%, rgba(0,0,0,0.92) 88%, rgba(0,0,0,0.96) 93%,
+    rgba(0,0,0,0.98) 97%, #000 100%
+  );
+}
+@media (max-width: 47.99rem) { .project-header-gradient-fade { display: none; } }
+
+.project-page-header-gradient-fade {
+  height: 16rem;
+  margin-top: -16rem;
+  position: relative;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%);
+}
+
+.play-button {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.play-button svg { width: 40%; height: 40%; fill: currentColor; margin-left: 8%; }
+
+.player-controls {
+  position: absolute;
+  bottom: 2.4rem; left: 2.4rem; right: 2.4rem;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+}
+.player-bar {
+  flex: 1;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  cursor: pointer;
+}
+.player-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--foreground);
+}
+.player-time {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.75);
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.5);
+  background: var(--dark-shade);
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer { position: relative; z-index: 2; }
+.footer-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 2.4rem;
+  border-top: 4px solid var(--border);
+  font-family: var(--font-heading);
+  font-size: 3.2rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  transition: color 0.15s linear;
+}
+@media (min-width: 48rem) { .footer-nav-link { font-size: 4rem; padding-block: 2rem; } }
+.footer-nav-link:hover { color: var(--accent); }
+.footer-arrow {
+  width: 2.4rem; height: 2.4rem; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: calc(var(--radius) * 0.5);
+}
+.footer-arrow svg { width: 60%; height: 60%; fill: currentColor; transform: rotate(-45deg); }
+
+.social-badges { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.input-group input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  padding-inline: 1.2rem;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.input-group input::placeholder { color: rgba(255, 255, 255, 0.35); }
+
+/* ---------- 通用内容区 ---------- */
+
+.prose-grid { row-gap: 4rem; }
+.field { display: flex; flex-direction: column; gap: 0.8rem; }
+.field input,
+.field textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) * 0.5);
+  padding: 1.6rem;
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+}
+.field input:focus,
+.field textarea:focus { border-color: rgba(255, 255, 255, 0.3); }
+.field label { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+
+/* 第二十七轮：Q. / A. 前缀用**伪元素**写，不进 DOM。
+   原因很实在：M1 断言是拿 .accordion-trigger > span:first-child 的 textContent
+   逐条比的（indexOf("AI") === 0 这种），把「Q.」写进 span 会把位置顶掉；
+   而 textContent 读不到伪元素内容，用 ::before 就既能显示又不影响断言。 */
+.js-accordion:not(.js-capabilities) .accordion-trigger > span:first-child::before {
+  content: "Q.";
+  font-family: var(--font-mono);
+  font-size: 0.44em;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  vertical-align: 0.28em;
+  margin-right: 0.7em;
+}
+.js-accordion:not(.js-capabilities) .accordion-panel > p::before {
+  content: "A.";
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  margin-bottom: 1.2rem;
+}
+.accordion-item { border-top: 4px solid var(--border); }
+.accordion-trigger {
+  display: flex; align-items: center; justify-content: space-between; gap: 2.4rem;
+  width: 100%; padding-block: 2.4rem; text-align: left;
+  font-family: var(--font-heading);
+  font-size: 2.4rem; text-transform: uppercase; letter-spacing: -0.01em;
+  transition: color 0.15s linear;
+}
+@media (min-width: 48rem) { .accordion-trigger { font-size: 3.2rem; } }
+.accordion-trigger:hover { color: var(--accent); }
+.accordion-panel { display: none; padding-bottom: 2.4rem; max-width: 70ch; }
+.accordion-item.is-open .accordion-panel { display: block; }
+.accordion-item.is-open .accordion-trigger { color: var(--accent); }
+/* 第二十七轮：「+」从一枚裸字符改成描边圆环里的一枚十字 ——
+   展开时圆环转 45° 变成「×」，并转成荧光黄。
+   旋转只作用在 .accordion-sign 自己身上，不影响 .accordion-trigger 的 rect.left。 */
+.accordion-sign {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  /* 第二十八轮：0.22 → 0.18，和 .about-num / .creed-num / .process-num /
+     .ed-reg 统一到同一档淡度（见 .creed-num 那条注释）。 */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  font-size: 1.8rem;
+  line-height: 1;
+  transition: transform 0.28s var(--ease-expo-out), border-color 0.2s linear, color 0.2s linear;
+}
+.accordion-item.is-open .accordion-sign,
+.accordion-trigger:hover .accordion-sign { border-color: var(--accent); }
+.accordion-item.is-open .accordion-sign {
+  color: var(--accent);
+  transform: rotate(45deg);
+}
+
+/* ---------- 滚动揭示（列表/内容页用） ---------- */
+.reveal { opacity: 0; transform: translateY(3.2rem); }
+
+/* ---------- 真实媒体（video / img 铺满容器） ---------- */
+.media-el {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #0c0e0f;
+}
+
+/* =============================================================
+   首页文字配色：全部纯白（主标不再用强调黄）
+   ——— 2026-09-27 用户要求：整体改为纯白色，并整体放大一档、向右平移
+   ============================================================= */
+
+/* 主标题 —— 纯白，只靠投影在亮画面上保证可读 */
+.snap-title-accent {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  filter: drop-shadow(0 4px 26px rgba(0, 0, 0, 0.9));
+}
+
+/* 次级小字（副标 / 客户行）—— 纯白，只靠投影保证可读。
+   注意：不再是渐变描字，所以必须显式清掉 background-clip 相关属性，
+   否则残留的 -webkit-text-fill-color:transparent 会让文字彻底看不见。 */
+.snap-sub-accent,
+.snap-client-accent {
+  background-image: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  animation: none;
+  filter: drop-shadow(0 2px 14px rgba(0, 0, 0, 0.9));
+}
+
+/* 客户行比正文小字再收敛一点，避免抢主标 */
+.snap-client-accent {
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* 正文段落：改为纯白（原来是 0.92 灰白） */
+body[data-page="home"] .snap-sub-accent {
+  max-width: 58ch;
+  margin-inline: 0;
+  line-height: 1.75;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+/* 徽标：跟着整体走纯白描边，不再用黄字，避免和纯白标题抢焦点 */
+body[data-page="home"] .snap-content .badge {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+body[data-page="home"] .snap-content .badge .badge-dot { background: #ffffff; }
+
+/* ---------- 首页文案整体放大（第十七轮：在上一轮基础上再加一档） ----------
+   主标 13.6 → 15.6rem，副标 / 客户行 / 正文同步上调；
+   横向位置由 --home-text-start 控制（见「文案栏几何」那一段）。 */
+body[data-page="home"] .snap-content .type-heading-xl { font-size: 6.4rem; }
+body[data-page="home"] .snap-content .type-heading-lg { font-size: 4.2rem; }
+body[data-page="home"] .snap-content .type-heading-sm { font-size: 2.6rem; }
+body[data-page="home"] .snap-content .type-base { font-size: 17px; }
+@media (min-width: 48rem) {
+  body[data-page="home"] .snap-content .type-heading-xl { font-size: 15.6rem; }
+  body[data-page="home"] .snap-content .type-heading-lg { font-size: 10.4rem; }
+  body[data-page="home"] .snap-content .type-heading-sm { font-size: 4.2rem; }
+  body[data-page="home"] .snap-content .type-base { font-size: 22px; }
+}
+@media (min-width: 64rem) {
+  body[data-page="home"] .snap-content .type-base { font-size: 24px; }
+}
+
+/* ---------- 首页两颗按钮共用的底：半透明深炭灰 + 磨砂玻璃 ----------
+   第十九轮改：原来是「白色亚克力」（白渐变 + saturate(160%)），
+   压在亮画面上会泛白、像一块实心白片。现在改成**深炭灰玻璃**：
+     填充  rgba(16, 18, 20, 0.42)  —— 深色半透明，不是实色
+     材质  blur(14px) saturate(120%) —— 轻微背景模糊穿透
+     高光  顶部一层 6% 白的极淡渐变，只为勾出玻璃的"厚度"
+     轮廓  1px 冷白描边 + 内侧 1px 高光 + 外投影悬浮
+   想整体调深浅只改 --btn-glass-alpha 一个值。 */
+:root { --btn-glass-alpha: 0.42; }
+body[data-page="home"] .snap-content .btn-link .glass-surface-wrapper {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(16, 18, 20, var(--btn-glass-alpha));
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+/* 内层的独立磨砂薄片让位给外层，否则两层叠出第二块底 */
+body[data-page="home"] .snap-content .btn-link .glass-surface-effect {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ---------- 第二十轮：鼠标移上去「缩小 + 亮度提高」，离开复原 ----------
+   缩小用 transform: scale（不碰 offsetWidth，所以布局尺寸不受影响，
+   第十八轮「观看作品比观看样片小一档」的量测断言不会被 hover 干扰）。
+   亮度提高改的是**玻璃填充色**本身（16,18,20 → 38,42,46）外加一点
+   内侧白高光，而不是给整颗按钮套 filter: brightness —— 后者会和
+   backdrop-filter 抢合成层，实测容易把毛玻璃穿成实色。
+   注意：填充色仍然保持在 RGB 全部 < 60 的深炭灰区间（只是更亮一档），
+   A22 / A23 的「深色半透明」判定不会因此翻车。
+   按下（:active）再收一档，做出「按下去」的手感。 */
+body[data-page="home"] .snap-content .btn-link .glass-surface-wrapper {
+  transform: scale(1);
+  transition:
+    transform 0.28s var(--ease-expo-out),
+    background-color 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease;
+}
+body[data-page="home"] .snap-content .btn-link:hover .glass-surface-wrapper,
+body[data-page="home"] .snap-content .btn-link:focus-visible .glass-surface-wrapper {
+  transform: scale(0.94);
+  background-color: rgba(38, 42, 46, calc(var(--btn-glass-alpha) + 0.06));
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+body[data-page="home"] .snap-content .btn-link:active .glass-surface-wrapper {
+  transform: scale(0.90);
+  background-color: rgba(48, 52, 58, calc(var(--btn-glass-alpha) + 0.10));
+}
+
+/* ---------- 第二十一轮：七颗「观看作品」尺寸完全一致，并整体再收一档 ----------
+   首页 hero 那颗原本用的是 .btn-lg（高 64px / 内边距 32px / 14px 字），
+   其余六颗单独压到了 48px —— 两档并存，看着像两套按钮。
+   现在统一到一个尺寸：**高 40px / 内边距 18px / 字号 12px**，图标同步收到 17px。
+   之所以写在 .glass-surface-content.btn 上（而不是改 .btn-lg）：
+   这里的三类名 + body 属性选择器比 .btn-lg 更具体，不用去动通用按钮类，
+   hero 那颗的 .btn-lg 自然被覆盖。
+   注意：内边距/高度只是变紧凑，磨砂玻璃底与悬停交互原样保留。 */
+body[data-page="home"] .snap-content .btn-link .glass-surface-content.btn {
+  height: 4rem;
+  padding-inline: 1.8rem;
+  font-size: 12px;
+}
+body[data-page="home"] .snap-content .btn-link .icon-box {
+  width: 1.7rem;
+  height: 1.7rem;
+}
+body[data-page="home"] .snap-content .btn-link .glass-surface-effect,
+body[data-page="home"] .snap-content .btn-link .glass-surface-content,
+body[data-page="home"] .snap-content .btn-link .glass-surface-content::before {
+  background: transparent;
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  filter: none;
+}
+
+/* =============================================================
+   首页左侧「单帧画廊」：帧数跟随全部视频数量（当前 22），竖排贴左边界
+   —— 视觉核心是「黄色描边框」：当前帧带实心黄框，其余按距离从亮到暗渐变
+   ============================================================= */
+
+/* 画廊容器：只在首页出现，紧贴左边界
+   注意：小屏默认隐藏，必须与首页规则同优先级且写在后面 */
+.frame-rail { display: none; }
+@media (max-width: 63.99rem) {
+  body[data-page="home"] .frame-rail { display: none; }
+}
+body[data-page="home"] .frame-rail {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100lvh;
+  /* 「整体小一些」：原 12/14/16rem → 8/9.5/11rem →（第十九轮）6.4/7.4/8.4rem
+     （根字号 10px，即 64/74/84px）。再小就看不清尾板画面了。 */
+  width: 6.4rem;
+  z-index: 4;
+  overflow: hidden;
+  display: block;
+  /* 帧可以点：点某一帧 = 播放那一支视频。
+     容器本身留 pointer-events:none，把可点区域只交给 .frame-cell，
+     这样画廊上下的"空白走道"不会挡住页面其他交互。 */
+  pointer-events: none;
+  /* 贴边：只留一点点内边距，让帧几乎碰到边界线 */
+  padding-left: 0.5rem;
+  /* 上下渐隐，形成"胶片条"感 */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14% 86%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 14% 86%, transparent 100%);
+}
+@media (min-width: 64rem) {
+  body[data-page="home"] .frame-rail { width: 7.4rem; padding-left: 0.5rem; }
+}
+@media (min-width: 80rem) {
+  body[data-page="home"] .frame-rail { width: 8.4rem; padding-left: 0.6rem; }
+}
+
+/* 轨道：由 JS 纵向平移，translateY 随滚动变化 */
+.frame-rail-track {
+  display: flex;
+  flex-direction: column;
+  /* 第十九轮：跟着"整体小一些"把帧间距也收紧一点 */
+  gap: 0.45rem;
+  will-change: transform;
+}
+
+/* 单帧 */
+.frame-cell {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  flex: none;
+  overflow: hidden;
+  border: 1.5px solid rgba(227, 255, 57, 0.28);
+  border-radius: 2px;
+  background: #0c0e0f;
+  /* 「从暗到亮」：--lit 由 JS 按与当前帧的距离写入（0=最暗, 1=当前帧）
+     透明度 / 缩放 / 边框 / 黄框强度都挂在这个变量上，是连续过渡。
+     注意：亮度滤镜必须写在 <img> 上（见下），写在父级会被 img 自己的
+     filter 覆盖掉，图片看起来就不会变暗。 */
+  --lit: 0.16;
+  opacity: calc(0.22 + 0.78 * var(--lit));
+  transform: scale(calc(0.86 + 0.14 * var(--lit)));
+  transform-origin: left center;
+  border-color: rgba(227, 255, 57, calc(0.12 + 0.62 * var(--lit)));
+  box-shadow: 0 0 calc(16 * var(--lit) * 1px) rgba(227, 255, 57, calc(0.42 * var(--lit)));
+  transition: none; /* 连续值由 JS 每帧写入，交给过渡反而会互相追尾 */
+  /* 可点击：点这一帧 = 播放它对应的那支视频 */
+  pointer-events: auto;
+  cursor: pointer;
+  /* 点击热区：横向扩展一点，纵向靠间距兜底，避免 22 帧时太难点中 */
+  outline-offset: 2px;
+}
+.frame-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* hover 时把黄框点亮，明确"这里可以点" */
+.frame-cell:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 18px rgba(227, 255, 57, 0.38);
+}
+/* 图片本身的明暗：这是"从暗到亮"真正被看到的地方。
+   暗时压到 0.3 亮度 + 0.24 饱和，亮时到 1.16 亮度 + 1.0 饱和。 */
+.frame-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: saturate(calc(0.24 + 0.76 * var(--lit))) brightness(calc(0.3 + 0.86 * var(--lit))) contrast(1.04);
+  transition: none;
+}
+/* 序号角标 */
+.frame-cell-index {
+  position: absolute;
+  left: 0.28rem;
+  bottom: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+}
+
+/* 当前帧：实心黄框 + 全亮 + 放大 —— "跟随滑动的黄色框"
+   （--lit 已由 JS 推到 1，这里只补 class 专属的强调） */
+.frame-cell.is-current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent),
+              0 0 16px rgba(227, 255, 57, 0.42),
+              0 8px 26px rgba(0, 0, 0, 0.7);
+}
+/* 当前帧里的图再额外提亮一点，形成"发光"的中心 */
+.frame-cell.is-current img {
+  filter: saturate(1.05) brightness(1.16) contrast(1.06);
+}
+
+/* 帧间的胶片齿孔装饰线 */
+.frame-cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.045) 0 1px,
+    transparent 1px 3px
+  );
+  opacity: 0.55;
+}
+
+/* 画廊右侧一条极细的黄色计时轴
+   （历史遗留：这段曾重复定义两次，已合并为一份） */
+.frame-rail-axis {
+  position: absolute;
+  left: 0.35rem;
+  top: 17%;
+  height: 66%;
+  width: 1px;
+  background: rgba(227, 255, 57, 0.22);
+}
+.frame-rail-axis-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 0%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(227, 255, 57, 0.8);
+}
+
+/* reduced motion 降级 */
+@media (prefers-reduced-motion: reduce) {
+  .frame-cell { transition: none; opacity: 0.9; transform: none; }
+  .snap-sub-accent, .snap-client-accent { animation: none; }
+}
+
+/* ---------- reduced motion 降级 ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}
+
+/* =============================================================
+   全屏视频播放器（点击首页视频进入）
+   要求：正常播放 + 有声音 + 可自由退出 + 各视频互不影响
+   ============================================================= */
+
+.video-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  visibility: hidden;
+  opacity: 0;
+  /* 遮罩只做"变暗"，位移与缩放全部交给舞台的 FLIP transform，
+     这样弹出时是画面本身在生长，而不是整个浮层一起淡入 */
+  transition: opacity 0.42s var(--ease-expo-out), visibility 0s linear 0.42s;
+}
+.video-modal.is-open {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.42s var(--ease-expo-out), visibility 0s;
+}
+
+.video-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  -webkit-backdrop-filter: blur(22px) saturate(0.65);
+  backdrop-filter: blur(22px) saturate(0.65);
+  cursor: zoom-out;
+}
+
+/* 舞台：JS 用 FLIP 直接给 left/top/width/height，这里不再写死尺寸，
+   否则会和 FLIP 的 transform 起点打架。 */
+.video-modal-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border: 2px solid rgba(227, 255, 57, 0.28);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  opacity: 0;
+  will-change: transform, opacity;
+  /* transform 与 transition 由 JS 逐帧设置（FLIP），此处不要覆盖 */
+}
+
+.video-modal-el {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+  cursor: pointer;
+}
+
+/* 进度条：贴在舞台底部，细一条，hover 变粗 */
+.video-modal-scrub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0.6rem;
+  padding-block: 0.24rem;
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  z-index: 3;
+  transition: height 0.24s var(--ease-expo-out);
+}
+.video-modal-scrub:hover { height: 1.1rem; }
+.video-modal-scrub-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(227, 255, 57, 0.6);
+  pointer-events: none;
+}
+
+/* 中央大播放键：暂停时出现 */
+.video-modal-bigplay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9.6rem;
+  height: 9.6rem;
+  margin: -4.8rem 0 0 -4.8rem;
+  border-radius: 50%;
+  border: 2px solid rgba(227, 255, 57, 0.55);
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.86);
+  pointer-events: none;
+  transition: opacity 0.32s var(--ease-expo-out), transform 0.32s var(--ease-expo-out);
+  z-index: 3;
+}
+.video-modal.is-paused .video-modal-bigplay {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+.video-modal-bigplay:hover { background: rgba(227, 255, 57, 0.2); }
+.video-modal-bigplay-icon svg { width: 3.4rem; height: 3.4rem; fill: currentColor; display: block; }
+
+/* 信息条：客户 / 标题 + 控制按钮 */
+.video-modal-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2.4rem;
+  padding: 1.6rem 2rem 2.4rem;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88), transparent);
+  z-index: 2;
+  /* 生长动画进行中先不出现，避免抢注意力 */
+  opacity: 1;
+  transition: opacity 0.3s linear 0.16s;
+}
+.video-modal.is-entering .video-modal-bar { opacity: 0; transition-delay: 0s; }
+
+/* 控制按钮组 */
+.video-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  pointer-events: auto;
+  flex: none;
+}
+.video-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.22s linear, border-color 0.22s linear, color 0.22s linear;
+}
+.video-modal-btn:hover,
+.video-modal-btn:focus-visible {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b0d0e;
+  outline: none;
+}
+.video-modal-btn svg,
+.video-modal-btn svg * {
+  width: 1.9rem;
+  height: 1.9rem;
+  display: block;
+  fill: currentColor;
+}
+.video-modal-btn svg path[stroke] { fill: none; }
+
+.video-modal-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.video-modal-client {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(227, 255, 57, 0.85);
+}
+.video-modal-title {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  line-height: 1.15;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.video-modal-close {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  height: 4.2rem;
+  padding: 0 1.6rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(227, 255, 57, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s linear, border-color 0.25s linear, color 0.25s linear;
+}
+.video-modal-close:hover,
+.video-modal-close:focus-visible {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b0d0e;
+  outline: none;
+}
+.video-modal-close-icon svg,
+.video-modal-close-icon svg * {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: block;
+  stroke-width: 2.6;
+}
+
+/* 加载态 */
+.video-modal-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4.4rem;
+  height: 4.4rem;
+  margin: -2.2rem 0 0 -2.2rem;
+  border: 2px solid rgba(227, 255, 57, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s linear;
+  pointer-events: none;
+}
+.video-modal.is-open .video-modal-spinner { opacity: 1; animation: slSpin 0.9s linear infinite; }
+.video-modal.is-open.is-playing .video-modal-spinner { opacity: 0; animation: none; }
+.video-modal-stage.is-error .video-modal-spinner { display: none; }
+@keyframes slSpin { to { transform: rotate(360deg); } }
+
+/* 播放器打开时锁住页面滚动 */
+html.is-video-open, html.is-video-open body { overflow: hidden; }
+
+/* 场景可点击的暗示：轻微播放图标 + 光标 */
+.scene.is-playable { cursor: pointer; }
+.scene.is-playable::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(227, 255, 57, 0.08) 0%,
+    transparent 42%
+  );
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-expo-out);
+}
+.scene.is-playable:hover::after { opacity: 1; }
+.scene.is-playable:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+
+/* =============================================================
+   语言切换（EN / 中 双态拨片）
+   滑块用 transform 移动，配合 expo 缓动，手感干脆
+   ============================================================= */
+.lang-switch {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+/* track 只做「摆放两枚标签」的容器，不再自带底色：
+   之前它是 纯黑 42% 的一层底 + 里面又压一枚黄色滑块，等于两层底叠在一起，
+   边缘一圈黑框和滑块之间留了 5px 空隙，看着就是「两个底互相错位」。
+   现在底只有滑块那一层。 */
+.lang-switch-track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  /* 第三十一轮：拨片与导航栏等高（3.6 → 3.2rem）、收窄（9.6 → 8rem），
+     这样它与「精选作品…联系我们」整条处在同一水平高度上。 */
+  width: 8rem;
+  height: 3.2rem;
+  padding: 0;
+  border-radius: 9999px;
+  border: 0;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition: box-shadow 0.2s linear;
+}
+.lang-switch:hover .lang-switch-track { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32); }
+.lang-switch:focus-visible { outline: none; }
+.lang-switch:focus-visible .lang-switch-track {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* 滑块本身就是那唯一的「底」：撑满半边、顶到上下边缘 */
+.lang-switch-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 2px 12px rgba(227, 255, 57, 0.35);
+  transform: translateX(0);
+  transition: transform 0.42s var(--ease-expo-out);
+}
+.lang-switch.is-zh .lang-switch-thumb { transform: translateX(100%); }
+
+/* 两个选项文字 */
+.lang-switch-opt {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 50%;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+  /* 没有 track 底了，未选中的那一侧直接压在视频上，给点投影保证可读 */
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.75);
+  transition: color 0.3s linear;
+  user-select: none;
+}
+/* 被滑块盖住的那个用深色，形成"选中"的对比 */
+.lang-switch.is-en .lang-switch-opt[data-lang-opt="en"],
+.lang-switch.is-zh .lang-switch-opt[data-lang-opt="zh"] {
+  color: #0b0d0e;
+}
+.lang-switch.is-en .lang-switch-opt[data-lang-opt="zh"],
+.lang-switch.is-zh .lang-switch-opt[data-lang-opt="en"] {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* 抽屉里的实例同样只留滑块一层底 */
+.drawer .lang-switch-track { background: transparent; }
+.drawer .lang-switch-thumb { box-shadow: none; }
+
+/* 中文模式下部分西文标签字距收紧 */
+html[data-lang="zh"] .nav-item { letter-spacing: 0; }
+html[data-lang="zh"] .video-modal-title { font-size: 2.2rem; }
+
+/* reduced motion 降级 */
+@media (prefers-reduced-motion: reduce) {
+  .video-modal,
+  .video-modal-stage { transition: none; }
+  .video-modal-stage { transform: none; opacity: 1; }
+  .video-modal-spinner { animation: none; }
+}
+
+/* =============================================================
+   项目详情视图（SLProjectView）
+   —— 品牌页 GRID / CAROUSEL 点击视频卡片后弹出的「独立项目页」
+   —— 也供 work.html?p=slug 复用同一套 class
+   结构：顶栏(退出) / 播放器 / 可滚动内容(介绍 → 剧照 → 其他项目)
+   ============================================================= */
+
+.pv-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  visibility: hidden;
+  display: block;
+}
+.pv-modal.is-open { visibility: visible; }
+
+.pv-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 9, 0.86);
+  backdrop-filter: blur(14px) saturate(0.9);
+  -webkit-backdrop-filter: blur(14px) saturate(0.9);
+  opacity: 0;
+  transition: opacity 0.45s linear;
+}
+.pv-modal.is-open .pv-backdrop { opacity: 1; }
+
+/* ---------- 舞台：FLIP 生长的主体 ---------- */
+.pv-stage {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0a0c0d;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* ---------- 顶栏：退出 ---------- */
+.pv-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1.2rem 1.6rem;
+  background: rgba(8, 10, 11, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+/* 顶栏只剩「品牌名 + 后退」两件，中间留空即可 */
+.pv-topbar-meta { min-width: 0; display: flex; align-items: baseline; gap: 1.2rem; }
+.pv-topbar-client {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* 退出键：黄描边胶囊。
+   第三十一轮：整颗收小一圈（padding 0.9/1.6 → 0.55/1.05rem，字 1.1 → 1rem），
+   并显式锁死「文字上下左右居中」——
+   inline-flex + align-items:center + justify-content:center + line-height:1，
+   图标与文字同一行垂直居中，不再靠 padding 目测。 */
+.pv-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.05rem;
+  border: 1px solid rgba(227, 255, 57, 0.5);
+  border-radius: 9999px;
+  background: rgba(227, 255, 57, 0.08);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.25s linear, color 0.25s linear, border-color 0.25s linear;
+}
+.pv-close:hover {
+  background: var(--accent);
+  color: #0a0c0d;
+  border-color: var(--accent);
+}
+.pv-close-icon { display: inline-flex; width: 1.1rem; height: 1.1rem; }
+.pv-close-icon svg { width: 100%; height: 100%; }
+
+/* ---------- 播放器 ---------- */
+.pv-player {
+  position: relative;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+}
+.pv-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  z-index: 1;
+  background: #000;
+}
+/* 海报层：视频首帧解码前垫着，避免闪黑 */
+.pv-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #000 center / cover no-repeat;
+  filter: brightness(0.5) saturate(0.85);
+}
+.pv-modal.is-playing .pv-poster { opacity: 0; transition: opacity 0.6s linear; }
+
+/* 第三十一轮：视频左上角的「作品类型」标签（.pv-badge）已按需求整块撤掉，
+   画面左上交还给片子本身。 */
+
+/* ---------- 第三十一轮：放大态 —— 画面上只剩视频 ----------
+   点控制带里的放大键 → 舞台铺满视口、顶栏与下方介绍区整体隐掉；
+   视频仍是 16:9 原比例（片源即 1980×1080），
+   object-fit: contain 会自动上下/左右留黑，既不裁切也不拉伸。 */
+.pv-modal.is-expanded .pv-stage {
+  position: fixed;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border: 0;
+  background: #000;
+  box-shadow: none;
+}
+.pv-modal.is-expanded .pv-topbar,
+.pv-modal.is-expanded .pv-scroll { display: none; }
+.pv-modal.is-expanded .pv-player {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+.pv-modal.is-expanded .pv-controls { padding-inline: 2.4rem; }
+
+.pv-bigplay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: 8.4rem;
+  height: 8.4rem;
+  margin: -4.2rem 0 0 -4.2rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(10, 12, 13, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: opacity 0.3s linear, transform 0.3s var(--ease-expo-out), background 0.3s linear;
+}
+.pv-bigplay:hover { transform: scale(1.08); background: rgba(227, 255, 57, 0.9); color: #0a0c0d; }
+.pv-bigplay-icon { display: inline-flex; width: 3rem; height: 3rem; }
+.pv-bigplay-icon svg { width: 100%; height: 100%; }
+
+/* 控制带：细、压在画面底部，不抢视觉 */
+.pv-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.4rem 1.6rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.82) 100%);
+  opacity: 0;
+  transition: opacity 0.3s linear;
+}
+.pv-player:hover .pv-controls,
+.pv-modal.is-paused .pv-controls { opacity: 1; }
+
+.pv-ctl {
+  flex: none;
+  width: 2.8rem;
+  height: 2.8rem;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.2s linear, color 0.2s linear;
+}
+.pv-ctl:hover { opacity: 1; color: var(--accent); }
+.pv-ctl svg { width: 1.6rem; height: 1.6rem; }
+
+.pv-scrub {
+  flex: 1;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.24);
+  cursor: pointer;
+  position: relative;
+}
+.pv-scrub-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0%;
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(227, 255, 57, 0.7);
+}
+.pv-time {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.78);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 可滚动内容区 ---------- */
+.pv-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(227, 255, 57, 0.4) transparent;
+}
+
+/* 布局回到上下堆叠：顶栏 → 播放器 → 项目介绍 / 剧照 / 其他项目。
+   高度账在这个前提下必须算对，否则又会退回老毛病：
+   播放器按 16:9 撑满舞台 → .pv-scroll 被挤成 0 高 → 介绍一格都看不见。
+   分工：CSS 只负责"纵向三段的排列与内容区吃掉剩余高度"，
+   播放器的实际像素高度由 JS 的 stageRect() 控制（见 project.js）。 */
+.pv-stage { display: flex; flex-direction: column; }
+.pv-player { flex: none; aspect-ratio: 16 / 9; width: 100%; }
+.pv-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.pv-scroll::-webkit-scrollbar { width: 6px; }
+.pv-scroll::-webkit-scrollbar-thumb { background: rgba(227, 255, 57, 0.35); border-radius: 3px; }
+.pv-scroll-inner { padding: 3.2rem 3.2rem 4.8rem; }
+
+.pv-head { margin-bottom: 2.4rem; }
+.pv-client {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.8rem;
+}
+.pv-title {
+  font-family: var(--font-heading);
+  font-size: 4rem;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.pv-cat {
+  display: block;
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 项目介绍：左「简介」右「制作信息」，两栏各是一整个块。
+   注意 pv-intro 的直接子元素只能有两个（main / meta），
+   否则会按 DOM 顺序被塞进网格的不同格子，标题跑到一个单元格里。 */
+.pv-intro {
+  display: grid;
+  gap: 2.4rem;
+  padding-block: 2.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.pv-intro-main { min-width: 0; }
+.pv-blurb {
+  font-size: 1.7rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.86);
+  max-width: 62ch;
+}
+/* 中文时用思源黑体细体，避免中英混排的字号/基线跳来跳去 */
+html[data-lang="zh"] .pv-blurb {
+  font-family: var(--font-cjk);
+  font-weight: 300;
+  line-height: 1.9;
+  letter-spacing: 0.02em;
+}
+.pv-meta { display: grid; margin: 0; }
+.pv-meta-row {
+  display: grid;
+  grid-template-columns: 9.6rem minmax(0, 1fr);
+  gap: 1.6rem;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  padding-block: 0.8rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.pv-meta-row:first-child { border-top: 0; }
+.pv-meta-key {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+.pv-meta-val {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.88);
+  word-break: break-word;
+}
+
+@media (min-width: 64rem) {
+  .pv-intro { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 4.8rem; }
+  .pv-title { font-size: 5.2rem; }
+}
+
+.pv-section { margin-top: 4rem; }
+.pv-section-title {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 1.8rem;
+}
+
+/* 剧照带：横向滚动，卡片略窄形成"胶片"节奏 */
+.pv-stills {
+  display: flex;
+  gap: 1.2rem;
+  overflow-x: auto;
+  padding-bottom: 1.2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(227, 255, 57, 0.35) transparent;
+}
+.pv-stills::-webkit-scrollbar { height: 5px; }
+.pv-stills::-webkit-scrollbar-thumb { background: rgba(227, 255, 57, 0.3); border-radius: 3px; }
+.pv-still {
+  flex: none;
+  width: 26rem;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #0c0e0f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.pv-still img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.9s var(--ease-expo-out);
+}
+.pv-still:hover img { transform: scale(1.06); }
+
+/* 其他项目：四列小卡 */
+.pv-others {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.6rem;
+}
+@media (min-width: 48rem) { .pv-others { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.pv-other {
+  display: block;
+  text-align: left;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.pv-other-media {
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #0c0e0f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.3s linear;
+}
+.pv-other-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pv-other-client {
+  display: block;
+  margin-top: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.pv-other-title {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  text-transform: uppercase;
+  color: #fff;
+  margin-top: 0.2rem;
+}
+.pv-other:hover .pv-other-media { border-color: var(--accent); }
+.pv-other:hover .pv-other-title { color: var(--accent); }
+
+/* 窄屏：弹层铺满，内容区内边距收紧 */
+@media (max-width: 47.99rem) {
+  .pv-scroll-inner { padding: 2.4rem 1.8rem 4rem; }
+  .pv-title { font-size: 3rem; }
+  .pv-still { width: 20rem; }
+  .pv-topbar-title { font-size: 1.5rem; }
+  /* 根字号随视口缩小会把「后退」键压到 20px 出头，给它一个下限保证好按 */
+  .pv-close { min-height: 3.2rem; padding: 0.6rem 1.4rem; }
+  .pv-close-label { font-size: 1.2rem; }
+}
+
+/* 页面滚动锁：弹层打开时锁住 body 滚动 */
+html.is-video-open, html.is-video-open body { overflow: hidden; }
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .pv-stage, .pv-backdrop { transition: none !important; }
+  .pv-stage { opacity: 1 !important; }
+}
+
+/* =============================================================
+   扇形 Carousel（Fan）—— 品牌页 CAROUSEL 视图
+   一条水平"腰线"，卡片按与当前位置的偏移 fan 出去：
+     偏移 0  → 正中最亮最大
+     偏移 ±N → 依次旋转、下沉、后退、缩小
+   交互：左右拖拽换卡（带惯性吸附）、滚轮横向、左右按钮、方向键；
+        轻点当前卡 → 进入独立项目页；轻点其他卡 → 先居中。
+   ============================================================= */
+
+.fan-wrap {
+  position: relative;
+  padding-block: 2rem 0;
+}
+
+/* 第四十二轮：**上方「案例作品扇形」的舞台容器**。
+   这一层原来叫 `.fan-viewport`（装 15 张大卡片的老扇形轮播），
+   可视化编辑器的一次回写把它**连容器带卡片整块删掉了**，页面上方因此空了
+   一大截，而 list.js 拿不到容器直接 return，下方弧形也跟着不动。
+   本轮按用户新要求重建并改名 `.fan-stage` —— 几何换成**开口向下的半圆弧**
+   （只排 3 块、每块沿径向旋转朝向圆心），见 list.js 的 STAGE。
+
+   容器高度**由边长算出来**，不要写死断点 —— 推导（θ = 40°、k = 0.12）：
+     R = 2.598 S
+     底边 = top(2rem) + R(1−cosθ) + S/2 + S(1−k)(cosθ+sinθ)/2
+          = 2rem + 0.608S + 0.5S + 0.620S
+          = 2rem + **1.728 S**
+     校验：S=240 → 435px（实测四角最低点 435px ✓）；S=84 → 165px。
+   `contain: layout paint` 会裁到 padding box，高度给不够最外侧那块就被切掉
+   —— 第一版按「方块高 + 下沉」估成 27rem(270px)，实测被裁掉 165px。 */
+.fan-stage {
+  /* 方块尺寸**不能**写成 `clamp(84px, 22%, 240px)` —— 这个变量同时被用在
+     `height: calc(var(--stage-side) * 1.73 + 2.4rem)` 里，而**百分比在 height
+     上下文是相对父级高度**求值的（父高 auto ⇒ 整个 clamp 失效 ⇒ height 变 0，
+     实测 `stageH: 0`）。所以这里只给一个纯长度兜底值，真正的
+     「容器宽 22%，clamp 到 84~240px」由 list.js 的 measureStage() 算好写回
+     （写回来的是 px，于是 height 的 calc 也是纯长度运算）。
+     同理不能用 vw：它在 CDP 的 Emulation.setDeviceMetricsOverride 覆盖之后
+     不跟着更新（实测 390 视口下 15vw 仍按 1320 算 → 方块 198px → 3 块溢出）。 */
+  --stage-side: 240px;
+  position: relative;
+  height: calc(var(--stage-side) * 1.73 + 2.4rem);
+  margin: 0 auto 2.4rem;
+  /* 第四十三轮（大屏档）：把舞台左右各**放宽 3rem**（= 内容区的 padding），
+     让它顶到视口边缘。原因：卡片放大到 300px 之后，"外缘探出容器"这件事
+     发生得太早（|off| ≈ 1.2），淡出行程只有 0.2 档 —— 观感像"啪"地淡掉。
+     放宽 3rem 之后探边发生在 |off| ≈ 1.32，淡出行程 0.32 档（≈ 166ms），
+     是"滑出去 + 淡掉"而不是"原地消失"。
+     用负 margin 而不是 100vw：100vw 含滚动条宽度，会撑出横向滚动条。 */
+  /* 3D 场景：卡片在 Z 轴上分层才有"扇形"的厚度 */
+  perspective: 1800px;
+  perspective-origin: 50% 32%;
+  transform-style: preserve-3d;
+  outline: none;
+  cursor: grab;
+  touch-action: pan-y;
+  /* 独立合成层：拖拽时不会被父级重绘拖慢，也避免边缘残影。
+     第五十轮（用户第一条「圆角正方形整体放大40%」）：`layout paint` → **`layout`**
+     —— 卡面放大 40% 之后，静止态两侧那两块的外缘本来就探到容器之外了，
+     若仍留着 paint 裁切，就会在**容器边界**（桌面档离屏幕边还有十几像素）
+     处给卡片切出一条竖直硬边，看着像 bug。
+     去掉 paint 裁切后，溢出部分一路画到**视口边缘**才被 body 的
+     `overflow-x: hidden` 收掉（base.css:78）——观感就是「两侧案例滑出屏幕外」，
+     正是第四十三轮要的「两边案例从两侧出画消失」，而且位置更准确。
+     只去掉 paint，layout 保留：它带来的「成为绝对定位后代的包含块 + 新 BFC」
+     正是 .fan-card 定位所依赖的（.fan-stage 本来就是 position: relative）。 */
+  contain: layout;
+}
+.fan-stage.is-dragging { cursor: grabbing; }
+/* 大屏档把舞台左右各顶出去 3rem（理由见上面 `.fan-stage` 里的注释）。
+   只在这一档做：窄屏的内容区 padding 本来就小，再往外顶会撑出横向滚动。 */
+@media (min-width: 64rem) {
+  /* 第五十轮：这一档的裁剪已由「容器边界」改到「视口边缘」（见 .fan-stage 的
+     contain 注释），这条 +6rem 只影响 measureStage() 读到的容器宽
+     （= 卡片边长的 0.319 倍基数），不影响裁剪位置，故保留原值。 */
+  .fan-stage { width: calc(100% + 6rem); margin-left: -3rem; }
+}
+
+.fan-card {
+  position: absolute;
+  left: 50%;
+  top: 2rem;
+  /* 第四十二轮：卡片尺寸改成**跟着舞台走**的单一变量
+     （原来写死 45rem / 50rem —— 那种大卡排 3 块必然叠在一起）。
+     240px 是"扇形大一些"的上限，84px 是 390 视口下 3 块不出血的下限：
+     总宽 ≈ 4.46 × 边长（推导见 list.js 的 stageRadius()）。 */
+  width: var(--stage-side, 240px);
+  margin-left: calc(var(--stage-side, 240px) / -2);   /* 以中心为锚点 */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  user-select: none;
+  transition: box-shadow 0.4s var(--ease-expo-out);
+}
+/* 拖拽期间一律关掉过渡：
+   transform 每帧都在改，如果还挂着 transition，浏览器会把每一帧
+   都当成一次新的补间去追 —— 表现就是卡片"追不上手"、拖出一串残影（拖尾）。 */
+.fan-stage.is-dragging .fan-card,
+.fan-stage.is-dragging .fan-card-inner,
+.fan-stage.is-dragging .fan-card-play { transition: none !important; }
+/* 拖拽时把播放提示藏掉：它带 blur/box-shadow，移动中最容易留残影 */
+.fan-stage.is-dragging .fan-card-play { opacity: 0 !important; }
+
+/* ---------- 第二十三轮：切换途中保留两侧扇形，只清掉「中间卡底部的那条侵入」 ----------
+   上一版的做法是：拖拽/补间期间把非当前卡一律淡到全透明，让画面里只剩中间一支。
+   实测有两个毛病：
+     ① 两侧滑开的扇形整个消失，一按住鼠标画面就只剩一张，很秃；
+     ② 那两条 `transition: opacity .18s !important` 会把 .is-dragging 的
+        `transition: none` 顶掉 —— paint() 是逐帧写行内 opacity 的，
+        开着过渡就会让透明度滞后于位置，拖出一串半透明的"幽灵卡片"，
+        看上去正是「中间叠着一支别人的片子」。
+   现在改成：两侧扇形照常可见；另外给当前卡下方铺一条渐隐垫片，盖住相邻卡片
+   因 lift 下沉 + 旋转而在中间卡底部露出的那一条画面（实测 |off|=1 时约 59px）。
+
+   **第三十四轮（用户第二条）：这条垫片整个去掉。**
+   用户原话：「在鼠标左右滑动时中间案例底部不去除多余的，两侧的案例作品不变。」
+   —— 即：拖拽/切换途中**不要**再做"抹掉中间卡底部"这件事（那块纯黑渐隐
+   会把中间作品的画面下缘吃掉一截，看着像被裁掉）；两侧扇形照旧不动。
+   所以这里不再生成 ::after。两侧卡片本来就没有任何覆盖，无需额外处理。 */
+/* 第四十二轮：上面那条「≥64rem 把卡片写死成 50rem」的规则**整条删掉**。
+   它服务于老扇形（卡片越大越撑），而本轮是 3 块排圆弧 ——
+   500px 的方块 × 3 必然叠在一起。现在卡片尺寸统一由 `.fan-stage` 的
+   `--stage-side` 一个变量管（见上）。 */
+
+.fan-card-inner {
+  position: relative;
+  /* 第三十二轮：从 4px 的「近乎直角」改成大圆角方块卡片 ——
+     四个角是平滑的大弧度（不是直角、也不是圆形），
+     底子换成磨玻璃 + 1px 亮边。
+     第四十二轮：圆角改成跟着卡片尺寸走 —— 写死 3.2rem 在 84px 的窄屏方块上
+     会圆成一个胶囊，所以上下限收到 1.2rem ~ 3.2rem（≈ 边长的 14%）。
+     第五十轮（用户第一条「圆角正方形整体放大40%」）：卡面 300 → 420px，
+     这一档的圆角同比例 ×1.4 —— clamp(1.2rem, 2vw, 3.2rem)
+     → **clamp(1.68rem, 2.8vw, 4.48rem)**（桌面实测 32 → **44.8px**，
+     占边长仍 ≈ 10.7%）。不同比例放大就会"方角化"：卡一大、圆角没跟上，
+     四个角看着比原来尖。 */
+  border-radius: clamp(1.68rem, 2.8vw, 4.48rem);
+  overflow: hidden;
+  background: rgba(16, 18, 20, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 24px 70px rgba(0, 0, 0, 0.72);
+  transition: border-color 0.35s linear, box-shadow 0.45s var(--ease-expo-out);
+}
+/* 当前卡：黄框强调，和首页左侧画廊的"黄框跟随"是同一套语言 */
+.fan-card.is-active .fan-card-inner {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent),
+              0 0 30px rgba(227, 255, 57, 0.32),
+              0 30px 80px rgba(0, 0, 0, 0.78);
+}
+
+/* 第三十三轮：卡片形状从 16:9 横长方形改成**圆角正方形**（1:1）。
+   卡片宽度不变（76rem），高度由此从 42.75rem 变成 76rem ——
+   所以上面的 .fan-viewport 高度也必须跟着加（见那条注释）。 */
+.fan-card-media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: #000;
+}
+.fan-card-media .media-el { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* 卡内文字：压在画面下缘 */
+.fan-card-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  /* 第四十二轮：内边距按新卡片尺寸收一档（原来 2.4/1.8/1.6rem 是给 500px
+     大卡用的，套在 240px 方块上会把画面吃掉一半）。 */
+  padding: 1.4rem 1.2rem 1.2rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.88) 100%);
+  pointer-events: none;
+}
+/* 窄屏方块只有 84px，卡内文字塞不下（还会压住视频）→ 整块隐藏，
+   作品名交给下方的案例信息条（.fan-caption）去显示。 */
+@media (max-width: 47.99rem) { .fan-card-meta { display: none; } }
+.fan-card-client {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+.fan-card-title {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  line-height: 1.06;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.fan-card-cat {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+@media (min-width: 64rem) { .fan-card-title { font-size: 2.8rem; } }
+
+/* 当前卡中央的播放提示 */
+.fan-card-play {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  z-index: 4;
+  /* 第四十二轮：跟着卡片缩放（原来写死 6.4rem，在 84px 的窄屏方块上
+     会比方块本身还大）。27% 是相对卡片宽的，视觉占比恒定。 */
+  width: clamp(28px, 27%, 64px);
+  height: clamp(28px, 27%, 64px);
+  margin: calc(clamp(28px, 27%, 64px) / -2) 0 0 calc(clamp(28px, 27%, 64px) / -2);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  /* 不用 backdrop-filter：移动中的元素带实时模糊会在拖拽时拖出残影，
+     这里改用半透明实色 + 一层柔光，观感接近但没有重绘代价。 */
+  background: rgba(10, 12, 13, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.35s linear, transform 0.45s var(--ease-expo-out), background 0.3s linear;
+  pointer-events: none;
+}
+/* 用 CSS 画一个三角，省一层 SVG */
+.fan-card-play::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin: -0.9rem 0 0 -0.6rem;
+  border-style: solid;
+  border-width: 0.9rem 0 0.9rem 1.4rem;
+  border-color: transparent transparent transparent #fff;
+}
+.fan-card.is-active .fan-card-play { opacity: 1; transform: scale(1); }
+.fan-card.is-active:hover .fan-card-play {
+  background: rgba(227, 255, 57, 0.92);
+  border-color: var(--accent);
+}
+.fan-card.is-active:hover .fan-card-play::after { border-left-color: #0a0c0d; }
+
+/* 下方信息条（第三十八轮起只剩案例信息；计数与左右箭头已按用户要求去掉）
+   第三十八轮（用户第四条「不要这根线」）：
+   **撤掉 border-top** —— 原来这里有一条横贯内容区的 1px 浅灰线
+   （1600 视口下实测 1504px 宽），压在「计数 + 左右箭头」上方。
+   计数整条去掉之后，这条线就孤零零地横在半空，用户点名要去掉。 */
+.fan-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2.4rem;
+  padding-top: 2.4rem;
+  margin-top: 1.6rem;
+}
+.fan-caption { min-width: 0; }
+.fan-caption-client {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.fan-caption-title {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 2.6rem;
+  line-height: 1.06;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-top: 0.4rem;
+}
+.fan-caption-cat,
+.fan-caption-year {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-right: 1.2rem;
+}
+
+/* 第三十四轮（用户第三条「左右切换按钮缩小」）：nav 内部间距同步收一档 */
+.fan-nav { flex: none; display: flex; align-items: center; gap: 1rem; }
+.fan-counter {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+.fan-arrow {
+  /* 第三十四轮（用户第三条）：左右切换按钮 4.4rem → **3.2rem**（32px） */
+  width: 3.2rem;
+  height: 3.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.25s linear, color 0.25s linear, border-color 0.25s linear;
+}
+/* 第三十二轮：箭头改成「左右朝向」。
+   #arrow 符号本身是一支对角线箭头（从左下指向右上，45°），
+   所以先转 45° 才是水平的「向右」；上一支再翻半圈 = 225° → 水平「向左」。 */
+.fan-arrow svg { width: 1.3rem; height: 1.3rem; transform: rotate(45deg); }
+.fan-arrow:hover { background: var(--accent); color: #0a0c0d; border-color: var(--accent); }
+.fan-arrow.js-fan-prev svg { transform: rotate(225deg); }
+
+/* 窄屏：卡更小、视角更紧，信息条竖排 */
+@media (max-width: 47.99rem) {
+  /* 第四十二轮：原来这里写死 `.fan-card { width: 20rem }`（200px） ——
+     它是给老扇形的大卡用的，会**盖掉**主规则里的 `var(--stage-side)`，
+     于是窄屏方块一直是 198px（3 块溢出到 x −259..649），
+     而容器 height 却按 84px 算（169px）—— 两个数字对不上，排布整个崩掉。
+     卡片尺寸现在只由 `--stage-side` 一个变量管，这里不再覆写 width；
+     播放图标同理（主规则已经是跟着卡片缩的 clamp）。
+     `.fan-viewport` 那条也一并删掉（那个容器已随第四十二轮改名 .fan-stage）。 */
+  .fan-card-title { font-size: 1.8rem; }
+  .fan-bar { flex-direction: column; align-items: flex-start; gap: 1.6rem; }
+  .fan-caption-title { font-size: 2rem; }
+}
+
+/* 中英文切换时扇形信息条的西文字距收紧 */
+html[data-lang="zh"] .fan-card-client,
+html[data-lang="zh"] .fan-caption-client { letter-spacing: 0.08em; }
+
+
+/* =============================================================
+   第三十一轮 —— 轮播视图下方新增的两件东西
+   ① 「查看项目」长方形圆角磨玻璃按钮（右侧一个播放图标）
+   ② 弧形圆角方块轮盘 .fan-arc
+      —— 5 个大圆角正方形沿一段「开口向下的半圆弧」分布，
+         每块跟随弧线做径向旋转、朝向圆心；中间最亮，向两侧衰减。
+   参考：用户给的 E-TORO 截图（VIEW PROJECT + 5 块弧形方块）。
+   ============================================================= */
+
+/* 信息条与下面新增内容的整体节奏：居中堆叠（对齐参考图的版面） */
+.fan-bar {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  /* 第三十四轮（用户第三条「整体移到作品下方」）：
+     外边距 / 内边距一起收，配合 .fan-viewport 的负 margin-bottom，
+     让整条信息条贴到圆角正方形作品的正下方（实测 310px → 约 40px）。 */
+  gap: 1.1rem;
+  padding-top: 1.2rem;
+  margin-top: 0;
+}
+/* 第三十五轮（参考图 画板 1.png）：案例信息回到「作品下方」这一摞里 ——
+   位置是「计数+箭头」之下、「查看项目」按钮之上，所以上下都不再需要
+   旧版为「压在轮播上方」留的那 3.2rem 底边距。 */
+.fan-caption { text-align: center; padding-bottom: 0; }
+/* 作品上方那行「白色文字介绍：项目大标题」——放大一档，纯白 */
+.fan-caption-title { font-size: 4rem; letter-spacing: -0.02em; }
+@media (min-width: 48rem) { .fan-caption-title { font-size: 4.8rem; } }
+
+.fan-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 第三十五轮：这一摞（箭头 → 案例信息 → 查看项目 → 弧形轮盘）要读成
+     **一整组**，所以组内间距统一收到 1.2rem，按钮与轮盘之间留 2.8rem 呼吸。
+     第四十轮（用户第四条）：顺序**倒过来**了 —— 现在是
+     「案例信息 → 弧形方块 → 查看更多项目」，按钮落到轮盘下方。
+     DOM 里 .fan-arc 也确实排在 .fan-view-project 之前（视觉与 DOM 一致，
+     读屏顺序才不会反），所以这里不需要 order；组内间距收到 1.6rem。 */
+  gap: 1.6rem;
+  margin-top: 1.2rem;
+}
+
+/* ---------- ③ 第四十四轮：「查看更多项目」上方的切换按钮 ----------
+   第四十四轮：参考图（组 2.png）是 **5 个圆角方块沿一条半圆弧**排布，
+   当时照做成了扇形按钮（整枚 200×78、弧半径 102px、θ = ±48/±24/0）。
+   第四十五轮：一枚链接 → **左右两枚**，成为驱动案例轮播的切换按钮。
+   第四十六轮（用户本条「去除，修改成左右箭头按键」）：**扇面整块去掉** ——
+   上一轮那对按钮本体还是 5 块方块沿圆弧排，读起来像一排「标点」，
+   指向性不强。现在只留**两枚圆形玻璃按键**，正中一枚暖黄箭头：
+   右枚是 ›、左枚整枚水平镜像 ⇒ ‹。
+   底色沿用第四十四轮定下的「半透明黑玻璃」（用户当时明确要的调性）：
+     linear-gradient(160deg, rgba(58,62,66,.94) → rgba(4,5,6,.72)) + 1px 描边
+   —— 深色页上既读得出形状，又不会糊成一块纯黑。
+   hover：整枚反色（强调色底 + 近黑箭头）并轻微放大 —— 与正下方
+   「查看更多项目」的 hover 语言一致（黄底 + 黑前景）。
+   ⚠️ 左枚的放大必须写成 `scaleX(-1) scale(1.06)`（先镜像再放大），
+      只写 `scale()` 会把镜像冲掉、箭头又翻回右边。 */
+.fan-arc-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 第四十八轮（用户本条「整体缩小60%」）：14px → 8.4px（×0.6） */
+  gap: 0.84rem;
+}
+.fan-arrow-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* 第四十八轮（用户本条「整体缩小60%」）：整枚 48px → **28.8px**（×0.6）。
+     缩进的是整组控件（外壳 / 箭头 / 两枚之间的空档 / 投影一起等比缩），
+     不是只缩某一件 —— 否则圆键里那支箭头会显得偏大或偏小。
+     ⚠️ 站点根字号是 **10px** 基准（base.css: --size-base 10 / artboard 1600），
+     1rem = 10px；2.88rem 才是 28.8px，别按 16px 的直觉填。 */
+  width: 2.88rem;
+  height: 2.88rem;
+  margin: 0;
+  /* 宿主是 <button>：把 UA 默认皮肤整层扒掉（灰底 + 黑边会毁掉圆形） */
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: rgba(4, 5, 6, 0.72);
+  background-image: linear-gradient(160deg, rgba(58, 62, 66, 0.94) 0%, rgba(4, 5, 6, 0.72) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 50%;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  /* 第四十八轮：投影跟着整枚一起 ×0.6（8/22 → 5/13），不然小圆上会拖出一圈很重的黑边 */
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.55);
+  opacity: 0.86;
+  transition: transform 0.35s var(--ease-expo-out), background-color 0.25s linear,
+    border-color 0.25s linear, color 0.25s linear, opacity 0.25s linear;
+}
+.fan-arrow-btn:hover,
+.fan-arrow-btn:focus-visible {
+  background-color: var(--accent);
+  background-image: linear-gradient(160deg, #e9ff6b 0%, var(--accent) 100%);
+  border-color: var(--accent);
+  color: #0b0c0d;
+  opacity: 1;
+  transform: scale(1.06);
+}
+.fan-arrow-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* 左枚：整枚水平镜像 ⇒ 里面的右箭头自动变成左箭头。
+   这两条必须排在 :hover 之后 —— 同为 (0,2,0) 时靠后来居上；
+   镜像态下的 hover 要显式写全 `scaleX(-1) scale(...)`。 */
+.fan-arrow-btn.is-mirror { transform: scaleX(-1); }
+.fan-arrow-btn.is-mirror:hover,
+.fan-arrow-btn.is-mirror:focus-visible { transform: scaleX(-1) scale(1.06); }
+.fan-arrow-btn-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fan-arrow-btn-ico svg {
+  /* 第四十八轮（整体 ×0.6）：11.5px → **6.9px**
+     第五十轮（用户第三条「按钮内左右箭头大一些」）：6.9 → **11px**
+     —— 这一轮**只放大箭头、不动外壳**（仍是 28.8px 的圆键），
+        于是箭头占键面的比例从 24% 提到 38%，小圆键上也能一眼看清方向。
+        再往上加就顶到键壁了（11px 时箭头两端离键缘还有约 9px）。 */
+  width: 1.1rem;
+  height: 1.1rem;
+  overflow: visible;
+}
+/* 窄屏：整枚收一档（≈ 42px），两枚之间的空档同步收小
+   第四十八轮（整体 ×0.6）：42 → **25.2px**、10 → 6px、11 → 6.6px */
+@media (max-width: 47.99rem) {
+  .fan-arc-nav { gap: 0.66rem; }
+  .fan-arrow-btn { width: 2.52rem; height: 2.52rem; }
+  /* 第五十轮：窄屏箭头同步放大（6 → **9.5px**，25.2px 的键面里占 38%） */
+  .fan-arrow-btn-ico svg { width: 0.95rem; height: 0.95rem; }
+}
+
+/* ---------- ① 查看项目：长方形 / 圆角 / 磨玻璃 ---------- */
+.fan-view-project {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  display: inline-block;
+  color: inherit;
+  /* 第四十轮（用户第四条）：这枚控件从 <button> 改成了 <a href="works.html">
+     —— 去掉链接下划线与默认蓝字，外观与原来完全一致。 */
+  text-decoration: none;
+}
+.fan-view-project > .glass-surface-wrapper {
+  display: inline-flex;
+  /* 第三十四轮（1.1rem → 0.9rem）；第三十八轮（用户第二条「整体缩小一些」）0.9 → 0.8rem */
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background-color: rgba(255, 255, 255, 0.10);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 30px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.25s linear, border-color 0.25s linear, transform 0.4s var(--ease-expo-out);
+}
+/* 三层磨玻璃只留外层那一层，否则会叠成三重底 */
+.fan-view-project .glass-surface-effect,
+.fan-view-project .glass-surface-content {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  filter: none;
+}
+.fan-view-project .glass-surface-content::before { display: none; }
+.fan-view-project-inner {
+  display: inline-flex;
+  align-items: center;
+  /* 第三十四轮：内边距 1/1.4/1/2.2rem → 0.7/1.1/0.7/1.6rem、间距 1.4rem → 1rem、
+     字号 1.15rem → 1rem（外壳实测 136×50 → 108×38）。
+     第三十八轮（用户第二条「整体缩小一些」）：再整体收一档 ——
+     内边距 → 0.55/0.9/0.55/1.3rem、间距 → 0.8rem、字号 → 0.9rem，
+     图标盒 2.2 → 1.9rem，外壳实测 108×38 → 约 90×31。
+     第四十四轮（用户第四条「这个按钮小一些」）：**再收一档** ——
+     内边距 → 0.42/0.7/0.42/1rem、间距 → 0.6rem、字号 → 0.8rem，
+     图标盒 1.9 → 1.6rem，外壳实测 115×33 → 约 92×26。 */
+  gap: 0.6rem;
+  padding: 0.42rem 0.7rem 0.42rem 1rem;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: color 0.25s linear;
+}
+html[data-lang="zh"] .fan-view-project-inner {
+  font-family: var(--font-cjk);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+}
+.fan-view-project .icon-box {
+  flex: none;
+  /* 第三十四轮：2.8rem → 2.2rem；第三十八轮：2.2 → 1.9rem；
+     第四十四轮：1.9 → 1.6rem */
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.25s linear;
+}
+.fan-view-project .icon-box svg {
+  width: 0.7rem;
+  height: 0.7rem;
+  fill: currentColor;
+  margin-left: 0.1rem;   /* 播放三角的光学配重 */
+}
+.fan-view-project:hover > .glass-surface-wrapper {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.fan-view-project:hover .glass-surface-content { color: var(--accent); }
+.fan-view-project:hover .icon-box { background: rgba(227, 255, 57, 0.9); color: #0a0c0d; }
+
+/* ---------- ② 弧形圆角方块轮盘 ---------- */
+.fan-arc {
+  position: relative;
+  width: 100%;
+  /* 第三十二轮：R 从 300 提到 520、step 24° → 23°、可见块从 5 块提到 7 块。
+     弧线占的高度翻了一倍多（最外侧下沉 ≈ 423px + 方块高的一半 ≈ 499px）。
+     高度必须给够，否则外侧两块会被容器裁掉。
+     第三十四轮：方块缩到 104px、step 提到 24°，最外侧下沉
+     ≈ R(1−cos72°) = 359px + 旋转外接盒的一半 ≈ 61px → 420px，48rem 够。 */
+  /* 第三十五轮：可见块数回到参考图的 **5 块**（|off| ≤ 2），
+     最外侧下沉只有 520×(1−cos48°) = 172px，整条弧占高 ≈ 283px ——
+     容器跟着收到 26 / 28 / 32rem，不再留一大条空白。 */
+  /* 第四十轮（用户第二条「改成扇形方式」+ 第三条「整体缩小，间距小一些」）：
+     排布从「沿圆弧下沉」改成**折扇式展开**（几何在 list.js 的 ARC 里），
+     方块 50 → 36px、最外侧下沉从 83px 降到 12px —— 整条只占高约 52px，
+     容器从 15rem 收到 **6.4rem**。 */
+  /* 第四十一轮（用户第一 / 二条）：排布**换回真圆弧轨迹**
+     （x = R·sinθ、y = R·(1−cosθ)，旋转 1:1 跟圆心角），
+     最外侧 |off|=2 重新沉到 ≈ 59px（θ=52°），加上旋转后的外接盒
+     整条弧占高 ≈ 99px —— 所以容器必须**加回来**：6.4rem → **9.2rem**。
+     这里留 ~7px 余量，免得被 `contain: layout paint` 裁掉下缘。
+     第五十轮（用户第一条「圆角正方形整体放大40%」）：方块 30 → 42px，
+     半径、下沉量、旋转外接盒**全部按边长等比 ×1.4** ⇒ 整条弧占高
+     88.3px → **123.6px**，容器同步 9.2 → **13rem**（留 ~6px 余量）。
+     同理上面两档：9.6 → 13.5rem、10.6 → **14.6rem**（64rem 档方块 36 →
+     50.4px，占高 98.7 → 138.2px，容器留 ~8px）。
+     ⚠️ 这个高度是**硬门槛**：写小了 `contain: paint` 会把最外侧两块
+        的下缘削掉一条（第三十九轮踩过，本轮放大后更容易踩到）。 */
+  height: 13rem;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  outline: none;
+  cursor: grab;
+  touch-action: pan-y;
+  contain: layout paint;
+  /* 第三十七轮（用户第一条「底部不要底色，纯黑色」）：**整层撤掉** ——
+     用户要的就是纯黑底，底下不要再铺任何底色（历史沿革：第三十二轮
+     这里是一条铺满容器的纵向渐变，会在纯黑页上显出浅灰矩形；第三十四轮
+     换成一层「够不着边」的径向柔光来衬托半透明黑方块）。
+     现在方块改由**自身半透明白**来读形状（见 .arc-tile），
+     亮度的「中间最亮、向两侧衰减」也直接由 --arc-bright 控那层白的 alpha，
+     于是不再需要背景光晕，也不会再有「容器边缘由亮突变到无光」的硬边问题。 */
+  background: none;
+}
+.fan-arc.is-dragging { cursor: grabbing; }
+.fan-arc.is-dragging .arc-tile { transition: none !important; }
+/* 第三十四轮（用户第五条「整体缩小一些」）：方块小了、弧也更平，
+   容器高度跟着收：40 / 46 / 54rem → 34 / 38 / 48rem。
+   第三十七轮（用户第一条「整体缩小」）：方块 104 → 84px、弧半径 520 → 416
+   （在 list.js 的 ARC 里等比缩），整条弧占高 289 → 约 231px，
+   容器再收一档：26 / 28 / 32rem → 18 / 20 / 24rem。
+   第三十九轮（用户第一条「整体缩小60%」）：弧半径 416 → 250、方块 → 50px，
+   整条弧占高约 231 → 152px。容器高度跟着收，但**留足不裁**（`contain: paint` 会裁）：
+   base 26rem → 15rem（方块 42px 时弧高约 141px）、≥64rem 24rem → 16rem（弧高 152px）。 */
+/* 第五十轮（整体放大40%）：9.6 → 13.5rem */
+@media (min-width: 48rem) { .fan-arc { height: 13.5rem; } }
+/* 第四十一轮：≥64rem 方块是 36px（另两档 30px），弧半径按边长反解也更大，
+   整条弧占高 ≈ 99px → 容器 7rem(70px) → **10.6rem**(106px)。 */
+/* 第五十轮（整体放大40%）：10.6 → 14.6rem */
+@media (min-width: 64rem) { .fan-arc { height: 14.6rem; } }
+
+.arc-tile {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  /* 第三十四轮（用户第五条「整体缩小一些」）：12.6rem → 8.8rem
+     第三十七轮（用户第一条「整体缩小」）：8.8rem → **7rem**
+     （大屏 10.4rem → 8.4rem），圆角同比例收。
+     第三十九轮（用户第一条「整体缩小60%」）：再按 **×0.6** 等比缩 ——
+     大屏 8.4rem → **5rem**（84 → 50px），基础档 7rem → 4.2rem（70 → 42px），
+     圆角 1.8rem → 1.1rem / 1.5rem → 0.9rem，margin 同步。
+     「整体」= 连弧线半径与容器高度一起缩（见 list.js 的 ARC.r 与 .fan-arc），
+     否则会变成「块小、路远」，间隙比也会崩。
+     第四十轮（用户第三条「整体缩小，间距小一些」）：**再缩 28%** ——
+     大屏 5rem → **3.6rem**（50 → 36px），基础档 4.2rem → **3rem**（42 → 30px），
+     圆角 1.1 → 0.8rem / 0.9 → 0.66rem（仍 ≈ 边长的 22%），margin 同步。
+     第四十一轮（用户第一 / 二条）：排布换回**真圆弧轨迹**（见 list.js 的 ARC），
+     方块尺寸**不动**（仍 36 / 30px，本轮没让缩小），改的是**间距** ——
+     由 ARC.gapK = 0.72 反解弧半径，净间隙从第四十轮的 12px 拉到 ≈ 28px。 */
+  /* 第五十轮（用户第一条「整体放大40%」）：30 → **42px** */
+  width: 4.2rem;
+  height: 4.2rem;
+  margin-left: -2.1rem;
+  padding: 0;
+  /* 第三十四轮（用户第五条「不要描边」）：border 归 0 —— 原来那圈 1px 亮边，
+     以及 box-shadow 里 `inset 0 1px 0` 的"顶边高光"，都是在描边，一起去掉。 */
+  border: 0;
+  /* 「大圆角正方形」：不是圆、也不是尖角 —— 半径取边长的 22% 左右
+     （第四十轮：边长 30px → 圆角 0.66rem = 6.6px，仍 ≈ 22%）
+     第五十轮（用户第一条「圆角正方形整体放大40%」）：边长 30 → **42px**
+     （3rem → 4.2rem），圆角同比例 6.6 → **9.24px**（0.66 → 0.92rem，
+     仍是边长的 22%），居中用的负 margin 同步 -1.5 → -2.1rem。
+     「整体」= 连弧线半径与容器高度一起放大：半径由 arcRadius() 按边长
+     反解（list.js），所以只要改 CSS 边长，弧会自己跟着 ×1.4；
+     但**容器高度是写死的**，必须手动跟上（见上方 .fan-arc 的三档 height），
+     否则 `contain: layout paint` 会把最外侧两块的下缘裁掉。 */
+  border-radius: 0.92rem;
+  /* 第三十七轮（用户第一条「修改成半透明 / 底部不要底色]」）：
+     上一版是「半透明黑底 + 由上到下 微亮→压黑 的渐变」，用户要的是
+     **半透明、且底部不要再有那层底色** —— 所以整块压成**单层**：
+       一层半透明白，上下一体、没有渐变，也就没有"底部底色"这件事。
+     白的 alpha 直接由 --arc-bright 驱动（JS 写 1 → 0.6），
+     于是「中间最亮、向两侧依次变暗」比原来那套 黑底+白纱+黑纱 三层叠
+     更直接、更可预测，也不需要在方块里再塞任何底色。
+     为什么不用半透明黑：容器底色已经撤掉（见 .fan-arc），
+     纯黑页 + 半透明黑方块 = 什么都看不见（第三十四轮踩过这一脚）。 */
+  background: rgba(255, 255, 255, calc(var(--arc-bright, 1) * 0.18));
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
+  box-shadow: none;
+  overflow: hidden;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  transition: opacity 0.4s linear, background-color 0.4s var(--ease-expo-out);
+}
+@media (min-width: 64rem) {
+  /* 第三十九轮「整体缩小60%」：8.4rem → 5rem（84 → 50px），圆角 1.8 → 1.1rem
+     第四十轮「整体缩小，间距小一些」：5rem → 3.6rem（50 → 36px），圆角 1.1 → 0.8rem */
+  /* 第五十轮（整体放大40%）：36 → **50.4px**，圆角仍取边长 22%（8 → 11.2px） */
+  .arc-tile { width: 5.04rem; height: 5.04rem; margin-left: -2.52rem; border-radius: 1.12rem; }
+}
+/* 第三十七轮：两层纱全部撤掉 ——
+   ::before 是「把中间块提亮」的白纱、::after 是「把两端压暗」的黑纱，
+   现在亮度层级已经由底色那层白的 alpha（--arc-bright）一次做完，
+   再叠纱就是三层互相打架（也是用户看到的"底色"的来源）。 */
+.arc-tile::before,
+.arc-tile::after { content: none; }
+/* 第三十四轮起就没有描边了（用户明确「不要描边」），
+   当前块**不再**额外压黑 —— 它本来就是弧心、--arc-bright 最高（最亮）。 */
+
+/* =============================================================
+   独立项目页 work.html?p=slug
+   —— 与弹层共用 .pv-* 组件，这里只补「页面内」的外壳样式
+   ============================================================= */
+
+/* ---------- 第四十四轮：退出键（播放器右上角内） ----------
+   历史沿革：第二十四~四十三轮这里是一枚 `.proj-back`「后退」——
+   压在大标题上方、页面左上角，只是一行淡灰小字（90×42、字号 11px）。
+   用户本轮明确「去除左上后退按钮，退出按钮在视频右上角，可以鼠标点击
+   退出当前页面返回上一级」，所以：
+     · 位置：挪进 `.proj-player`（position:relative）内部、右上角；
+     · 文案：后退 → 退出（.js-proj-back-label，i18n 键 btn.exit）；
+     · 形制：与弹层顶栏那枚 `.pv-close` 同一套语言（黄描边胶囊 + × 号），
+       但底色改成深色半透明 —— 它是**压在画面上的**，纯 8% 黄底在亮画面上
+       会读不出来；深底 + 黄字在深/浅画面上都稳。
+     · 钩子类名仍是 `.js-proj-back`（接线不动，改的只是位置与文案）。
+   ===== 第四十九轮（用户第三条「修改成长方形按钮」）：胶囊 → 长方形 =====
+     border-radius 9999px（胶囊）→ **0.6rem**（6px 圆角矩形），
+     并按"一枚按键"重新配了内边距（0.55/1.05 → 0.7/1.5rem）与最小宽度
+     （min-width 8.8rem ⇒ 88px，宽明显大于高，读起来就是一枚按键而不是一个
+     胶囊标签）。底色 / 黄描边 / hover 反色那套语言一点没动。
+   注意 z-index：要压过 .pv-video/.pv-poster（无 z-index）与底部的
+   .pv-controls，否则 hover 时会被进度条那一层吃掉点击。 */
+.proj-exit {
+  position: absolute;
+  top: 1.6rem;
+  right: 1.6rem;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  /* 第四十九轮：胶囊 → 长方形按键（见本段顶部注释） */
+  min-width: 8.8rem;
+  padding: 0.7rem 1.5rem;
+  border: 1px solid rgba(227, 255, 57, 0.55);
+  border-radius: 0.6rem;
+  background: rgba(10, 12, 13, 0.62);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.25s linear, color 0.25s linear, border-color 0.25s linear;
+}
+.proj-exit:hover { background: var(--accent); color: #0a0c0d; border-color: var(--accent); }
+.proj-exit:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.proj-exit-icon { display: inline-flex; width: 1.1rem; height: 1.1rem; }
+.proj-exit-icon svg { width: 100%; height: 100%; }
+html[data-lang="zh"] .proj-exit-label { font-family: var(--font-cjk); letter-spacing: 0.08em; }
+/* 窄屏：视频只有一屏宽，右上角那枚再收小一点，别压住画面主体 */
+@media (max-width: 47.99rem) {
+  /* 第四十九轮：窄屏同改长方形（min-width 收到 7.6rem，别在手机上压住画面） */
+  .proj-exit { top: 1rem; right: 1rem; min-width: 7.6rem; padding: 0.55rem 1.2rem; font-size: 0.9rem; gap: 0.4rem; border-radius: 0.5rem; }
+  .proj-exit-icon { width: 0.95rem; height: 0.95rem; }
+}
+
+.proj-page {
+  padding-block: 2.4rem 8rem;
+}
+
+/* 页面内的播放器：不再是绝对定位的舞台，而是普通文档流里的一个 16:9 盒子 */
+.proj-player {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 页面内的内容区：给个最大宽度，避免长行一路拉到屏幕右缘 */
+.proj-content {
+  margin-top: 4rem;
+  max-width: 118rem;
+}
+.proj-content .pv-scroll-inner { padding: 0; }
+
+@media (max-width: 47.99rem) {
+  .proj-page { padding-block: 1.6rem 6rem; }
+  .proj-content { margin-top: 2.8rem; }
+}
+
+/* =============================================================
+   模特与演员（LIST 视图 + 独立人物页 talent.html?t=slug）
+   1) LIST 视图 = 人物卡网格（超写实形象照 + 姓名 + 身份 + 作品数）
+   2) 独立页   = 大形象照 + 人物介绍 + 参加过的视频作品
+   ============================================================= */
+
+/* ---------- LIST 视图：人物卡 ---------- */
+.talent-panel-head { margin-bottom: 4.8rem; }
+.talent-panel-title {
+  font-family: var(--font-heading);
+  font-size: 4.8rem;
+  line-height: 1.05;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+/* 第二十三轮：72ch 太窄 —— 面板导语正好卡在 777.6px 的临界上，
+   稍窄一点的窗口就折成两行。放宽到 110ch，让它在桌面端稳定占一行。 */
+.talent-panel-intro { margin-top: 1.6rem; max-width: 110ch; }
+@media (min-width: 48rem) { .talent-panel-title { font-size: 7.2rem; } }
+
+.js-works-list.is-talent {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3.2rem 2.4rem;
+  /* 第二十五轮：名册 15 位 —— 同一套「2 / 3 / 5 整除」的断点 + 行宽上限，
+     理由见下面 .actor-grid 的注释。两处保持一致，不然
+     「模特与演员」页与「全部数字演员」页会呈现两种网格。 */
+  max-width: 118rem;
+}
+@media (min-width: 48rem) {
+  .js-works-list.is-talent { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 80rem) {
+  .js-works-list.is-talent { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3.2rem 1.6rem; }
+}
+
+.talent-card {
+  display: block;
+  position: relative;
+  color: inherit;
+}
+.talent-card-media {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.5);
+  aspect-ratio: 2 / 3;
+  background: #0c0e0f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.35s linear, transform 0.6s var(--ease-expo-out);
+}
+.talent-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* 第二十五轮：同 .actor-card-media —— 新素材是彩色棚拍，抽色收到 0.1，
+     否则蓝卫衣 / 芥黄背带裤的撞色会被压成灰的。 */
+  filter: grayscale(0.1) contrast(1.03);
+  transition: filter 0.5s var(--ease-expo-out), transform 0.8s var(--ease-expo-out);
+}
+.talent-card:hover .talent-card-media { border-color: var(--accent); }
+.talent-card:hover .talent-card-media img { filter: grayscale(0) contrast(1.06); transform: scale(1.04); }
+
+/* 左上角作品数：与首页左侧单帧画廊同一套数字语言 */
+.talent-card-index {
+  position: absolute;
+  left: 1.2rem;
+  top: 1.2rem;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  background: rgba(10, 12, 13, 0.72);
+  padding: 0.4rem 0.8rem;
+  border-radius: 2px;
+}
+
+.talent-card-meta { display: block; padding-top: 1.6rem; }
+.talent-card-name {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  line-height: 1.06;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.talent-card-role {
+  display: block;
+  margin-top: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.talent-card-count {
+  display: block;
+  margin-top: 0.6rem;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+}
+@media (min-width: 64rem) { .talent-card-name { font-size: 2rem; } }
+html[data-lang="zh"] .talent-card-name { letter-spacing: 0.02em; }
+
+/* ---------- 独立人物页 ---------- */
+.talent-hero { padding-block: 4rem 0; }
+.talent-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3.2rem;
+  align-items: start;
+}
+@media (min-width: 64rem) {
+  .talent-hero-grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 4.8rem; }
+}
+
+.talent-portrait {
+  position: relative;
+  border-radius: calc(var(--radius) * 0.5);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0c0e0f;
+}
+/* 全身形象照：整张图必须完整可见，不许裁掉脚/头。
+   容器给出竖构图比例，图片用 contain 兜住任意原始比例（含将来换成
+   更长的全身像），底色与页面一致，留边不突兀。 */
+.talent-portrait img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: contain;
+  object-position: center bottom;
+  background: #0c0e0f;
+  display: block;
+}
+.talent-portrait img.is-fullbody {
+  max-height: 82lvh;
+  object-position: center center;
+}
+
+/* 性格 / 风格 */
+.talent-traits {
+  margin-top: 2.4rem;
+  display: grid;
+  gap: 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 1.6rem;
+}
+.talent-trait {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 1.6rem;
+  align-items: baseline;
+}
+.talent-trait-key {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.talent-trait-val {
+  font-size: 1.5rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
+}
+@media (max-width: 47.99rem) {
+  .talent-trait { grid-template-columns: 1fr; gap: 0.4rem; }
+}
+/* 与首页单帧画廊呼应的一圈黄线 */
+.talent-portrait-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(227, 255, 57, 0.35);
+}
+
+.talent-name {
+  font-family: var(--font-heading);
+  font-size: 5.6rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+@media (min-width: 48rem) { .talent-name { font-size: 8.8rem; } }
+html[data-lang="zh"] .talent-name { letter-spacing: 0.01em; }
+
+.talent-meta {
+  margin-top: 3.2rem;
+  border-top: 4px solid var(--border);
+}
+.talent-meta-row {
+  display: flex;
+  gap: 0.8rem;
+  padding-block: 1.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.talent-meta-key {
+  flex: 0 0 12rem;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+.talent-meta-val { font-size: 14px; }
+
+/* ---------- 演员详情页：分类维度（第三十六轮 · 用户第三条） ----------
+   七行，每行 = 左列维度名（灰、等宽大写）+ 右列该演员的标签胶囊。
+   行与行之间用一条上边线分栏（跟 .tb-item 的语汇一致），最后一行的下边线封底。
+   窄屏（< 48rem）收成上下堆叠：维度名一行、标签在下一行。 */
+.dim-note { margin-bottom: 3.2rem; }
+.dim-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1.6rem;
+  padding-block: 1.8rem;
+  border-top: 1px solid var(--border-strong);
+}
+.dim-row:last-child { border-bottom: 1px solid var(--border-strong); }
+.dim-key { padding-top: 0.5rem; }
+.dim-tags { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.dim-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.7rem 1.3rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.86);
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+}
+html[data-lang="zh"] .dim-tag {
+  font-family: var(--font-cjk);
+  font-size: 1.2rem;
+  letter-spacing: 0.04em;
+}
+@media (max-width: 47.99rem) {
+  .dim-row { grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
+  .dim-key { padding-top: 0; }
+}
+
+.talent-bio {
+  margin-top: 3.2rem;
+  font-size: 1.6rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 56ch;
+}
+
+.talent-scroll-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.2rem;
+  margin-top: 4rem;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.talent-scroll-arrow {
+  width: 2.4rem;
+  height: 2.4rem;
+  color: var(--accent);
+  animation: talentBob 1.8s var(--ease-expo-out) infinite;
+}
+.talent-scroll-arrow svg { width: 100%; height: 100%; transform: rotate(90deg); }
+@keyframes talentBob {
+  0%, 100% { transform: translateY(0); opacity: 0.55; }
+  50%      { transform: translateY(0.6rem); opacity: 1; }
+}
+
+/* 参加过的作品 */
+.talent-works { padding-block: 8rem 0; }
+.talent-works-head { border-top: 4px solid var(--border); padding-top: 2.4rem; margin-bottom: 4.8rem; }
+.talent-works-title {
+  display: flex;
+  align-items: baseline;
+  gap: 1.6rem;
+  font-family: var(--font-heading);
+  font-size: 3.2rem;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+.talent-works-count {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+@media (min-width: 48rem) { .talent-works-title { font-size: 4.8rem; } }
+
+/* 作品卡上的小播放标记 */
+.work-card-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 5.6rem;
+  height: 5.6rem;
+  margin: -2.8rem 0 0 -2.8rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(10, 12, 13, 0.42);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.3s linear, transform 0.4s var(--ease-expo-out), background 0.3s linear;
+  pointer-events: none;
+}
+.work-card-play::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin: -0.8rem 0 0 -0.55rem;
+  border-style: solid;
+  border-width: 0.8rem 0 0.8rem 1.3rem;
+  border-color: transparent transparent transparent #fff;
+}
+.js-talent-work:hover .work-card-play { opacity: 1; transform: scale(1); }
+.js-talent-work:hover .work-card-play { background: rgba(227, 255, 57, 0.92); border-color: var(--accent); }
+.js-talent-work:hover .work-card-play::after { border-left-color: #0a0c0d; }
+
+/* 上一位 / 下一位 */
+.talent-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 2.4rem;
+  margin-top: 8rem;
+  padding-block: 3.2rem;
+  border-top: 4px solid var(--border);
+}
+.talent-nav-link { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.talent-nav-link.is-next { text-align: right; align-items: flex-end; }
+.talent-nav-link:hover { color: var(--accent); }
+.talent-nav-key {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+.talent-nav-name {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: inherit;
+}
+@media (min-width: 48rem) { .talent-nav-name { font-size: 3.2rem; } }
+@media (max-width: 47.99rem) {
+  .talent-hero { padding-block: 2.4rem 0; }
+  .talent-name { font-size: 4.4rem; }
+  .talent-works { padding-block: 5.6rem 0; }
+  .talent-meta-key { flex-basis: 9rem; }
+}
+
+/* =============================================================
+   第二十轮：首页「观看作品」→ 内页带声播放弹层（assets/js/watch-project.js）
+   结构：遮罩 + 舞台（后退键 / 左画面 + 右项目介绍 / 底部控制条）
+   视觉沿用站内既有语言：深黑遮罩 + 荧光黄强调 + 1px 冷白描边。
+   ============================================================= */
+.wp-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.42s var(--ease-expo-out), visibility 0s linear 0.42s;
+}
+.wp-modal.is-open {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.42s var(--ease-expo-out), visibility 0s;
+}
+.wp-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  -webkit-backdrop-filter: blur(22px) saturate(0.65);
+  backdrop-filter: blur(22px) saturate(0.65);
+  cursor: zoom-out;
+}
+
+/* 舞台：居中胶囊面板，左画面右文案 */
+.wp-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.96);
+  width: min(132rem, 94vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 11, 13, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2rem;
+  box-shadow: 0 40px 120px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transition: transform 0.42s var(--ease-expo-out);
+}
+.wp-modal.is-open .wp-stage { transform: translate(-50%, -50%) scale(1); }
+
+/* 后退键：舞台左上角，荧光黄 */
+.wp-back {
+  position: absolute;
+  left: 1.6rem;
+  top: 1.6rem;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  height: 4rem;
+  padding-inline: 1.6rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background-color: rgba(16, 18, 20, 0.46);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  backdrop-filter: blur(14px) saturate(120%);
+  color: var(--accent);
+  font-family: var(--font-cjk);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  transition: transform 0.24s var(--ease-expo-out), background-color 0.24s ease,
+    border-color 0.24s ease;
+}
+.wp-back:hover {
+  transform: scale(0.94);
+  background-color: rgba(38, 42, 46, 0.56);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.wp-back-icon { display: inline-flex; }
+.wp-back-icon .wp-ic { width: 1.8rem; height: 1.8rem; fill: none; }
+
+/* 主体：左画面 / 右介绍 */
+.wp-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.62fr) minmax(0, 1fr);
+}
+.wp-frame {
+  position: relative;
+  min-height: 0;
+  background: #000;
+}
+.wp-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  cursor: pointer;
+}
+
+/* 中央大键：暂停 / 静音提示时出现 */
+.wp-bigplay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9.6rem;
+  height: 9.6rem;
+  margin: -4.8rem 0 0 -4.8rem;
+  border-radius: 50%;
+  border: 2px solid rgba(227, 255, 57, 0.55);
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.86);
+  pointer-events: none;
+  transition: opacity 0.32s var(--ease-expo-out), transform 0.32s var(--ease-expo-out);
+  z-index: 4;
+}
+.wp-modal.is-paused .wp-bigplay,
+.wp-modal.is-muted .wp-bigplay {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+.wp-bigplay:hover { background: rgba(227, 255, 57, 0.2); }
+.wp-bigplay-icon .wp-ic { width: 3.4rem; height: 3.4rem; fill: currentColor; }
+.wp-bigplay-hint {
+  font-family: var(--font-cjk);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* 项目介绍栏 */
+.wp-info {
+  padding: 6.4rem 3.2rem 3.2rem;
+  overflow: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 40%);
+}
+.wp-cat {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border: 1px solid rgba(227, 255, 57, 0.4);
+  border-radius: 9999px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.wp-title {
+  margin: 1.6rem 0 0.4rem;
+  font-family: var(--font-heading);
+  font-size: 3.2rem;
+  line-height: 1.05;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.wp-client {
+  margin: 0 0 2rem;
+  font-family: var(--font-cjk);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+}
+.wp-section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.wp-blurb {
+  margin-top: 1.2rem;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.75;
+}
+.wp-credits {
+  margin: 2.4rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+.wp-credits dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 0.4rem;
+}
+.wp-credits dd {
+  margin: 0;
+  font-family: var(--font-cjk);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 底部控制条 */
+.wp-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+  padding: 1.2rem 2rem 1.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+}
+.wp-btn {
+  flex: 0 0 auto;
+  width: 4rem;
+  height: 4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.24s ease, transform 0.24s var(--ease-expo-out);
+}
+.wp-btn:hover { background: rgba(255, 255, 255, 0.14); transform: scale(0.94); }
+.wp-btn .wp-ic { width: 1.8rem; height: 1.8rem; fill: currentColor; }
+.wp-scrub {
+  flex: 1;
+  height: 0.6rem;
+  padding-block: 0.24rem;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: height 0.24s var(--ease-expo-out);
+}
+.wp-scrub:hover { height: 1.1rem; }
+.wp-scrub-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(227, 255, 57, 0.6);
+  pointer-events: none;
+}
+.wp-modal.is-muted .wp-scrub-fill { box-shadow: none; }
+
+/* 小屏：画面在上、介绍在下，舞台允许纵向滚动 */
+@media (max-width: 47.99rem) {
+  .wp-stage { width: 96vw; max-height: 94vh; border-radius: 1.2rem; }
+  .wp-body { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+  .wp-frame { aspect-ratio: 16 / 9; }
+  .wp-info { padding: 5.6rem 2rem 2.4rem; border-left: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+  .wp-title { font-size: 2.4rem; }
+}
+
+/* =============================================================
+   第二十一轮：模特与演员页 —— 「近期高人气模特」大文字 + 一支 MV
+   位置（见 stills.html）：导语之上是那行大字，导语之下横向铺一支 MV，
+   再往下才是人物卡网格。DA 感来自「超大中文标题 + 一行等宽小 Kicker」。
+   ============================================================= */
+.mv-head { margin-bottom: 3.2rem; }
+.mv-kicker {
+  display: block;
+  margin-bottom: 1.6rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+.mv-head .mv-title {
+  line-height: 0.96;
+  letter-spacing: -0.02em;
+  text-transform: none;   /* 中文不要被 uppercase 拉长字距 */
+}
+
+.mv-figure { margin: 4.8rem 0 0; }
+.mv-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: #000;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+/* SLMedia 挂载出来的 <video class="media-el"> 铺满容器 */
+.mv-media .media-el {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mv-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.2rem;
+  margin-top: 1.6rem;
+}
+.mv-caption-title {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: #fff;
+}
+@media (min-width: 48rem) { .mv-caption-title { font-size: 2.8rem; } }
+/* 第二十三轮：MV 标题拆成「品牌名 + 后缀」两段。
+   品牌名走纯白、字重更实；后缀保持同一套白但轻一档 —— 这样「模特与演员」
+   四个字在一行里是最抢眼的那一段。 */
+.mv-caption-brand {
+  color: #fff;               /* 明确写死：不继承父级的任何弱化 */
+  font-weight: 700;
+}
+.mv-caption-rest {
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 400;
+}
+
+/* =============================================================
+   第二十一轮：常见问题页（liquid-engine.html）的成套区块
+     1) FAQ 手风琴（复用站内 .accordion-* 结构，content.js 会自动接管）
+     2) 服务企业：SHARED VISIONS + logo 向左循环跑马灯
+     3) 独白：超大中文标语 + 三条信条
+     4) WHAT WE DO：四组能力卡
+     5) 流程：01→02→03→04 四步 + 箭头
+     6) NEXT STORY：征集故事 + 可生成项目简报的表单
+   ============================================================= */
+.faq-page-head { display: flex; flex-direction: column; gap: 1.6rem; }
+.faq-answer { max-width: 72ch; }
+
+/* 第二十八轮：栅格间距普遍放大一档（gap 2.4→3.2、margin-top 4.8→6.4rem），
+   条目顶线到内容的距离 1.6→2.4rem。这一组（初心三条 / 流程四步）上一版
+   挤在 4.8rem 里，跟正文抢空间，是「不大气」的直接来源。 */
+.creed-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3.2rem;
+  margin-top: 6.4rem;
+}
+@media (min-width: 48rem) { .creed-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.creed-item { border-top: 1px solid rgba(255, 255, 255, 0.16); padding-top: 2.4rem; }
+.creed-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  /* 第二十七轮：同上，01/02/03 包进描边圆环 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  /* 第二十八轮：描边 0.24 → 0.18，和 .about-num / .ed-reg 统一到一档淡度。
+     上一版四种圆环三种灰度，凑在一起深浅不一，是廉价感的来源之一。 */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  margin-bottom: 1.6rem;
+}
+.creed-title {
+  font-family: var(--font-cjk);
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+}
+@media (min-width: 48rem) { .creed-title { font-size: 20px; } }
+
+/* 能力卡：序号 / 中英标题 / 展开说明 / 标签列表 */
+.capability-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 1.6rem;
+}
+.capability-tags span {
+  padding: 0.4rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  font-family: var(--font-cjk);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.capability-en {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.45);
+  display: block;
+  margin-top: 0.6rem;
+}
+
+/* ---------- 流程四步（第二十九轮：4 列横向 → 纵向索引表） ----------
+   横向四步在 1440 屏上每列只有 ~230px：「理解目标，定义问题」要折成两行，
+   加上编号圆环和中文标题，一列里挤着三种字号 —— 这就是「拥挤」的观感来源，
+   而且四步横向排布还会把读者的视线拽成锯齿形。
+   改成**纵向索引表**之后每一步独占一整行，画册目录那种读法：
+       01   聆听                        理解目标，定义问题
+       02   共创                        创意提案，脚本确认
+   行内 padding 上下 4rem、行间一条 1px 发丝线，四步读下来是一张表而不是四张卡。
+   gap 归零 + 每行自带 border-top，线才连得起来。 */
+.process-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-top: 6.4rem;
+}
+.process-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 3.2rem;
+  row-gap: 0.8rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  /* 左右**必须是 0**：N-* 断言拿 .process-step 的 rect.left 判贴左边距。 */
+  padding: 4rem 0;
+}
+@media (min-width: 64rem) {
+  /*  编号列固定 10rem —— 四行的编号列宽一致，标题才会对齐成一条竖线 */
+  .process-step {
+    grid-template-columns: 10rem minmax(0, 1fr) minmax(0, auto);
+    column-gap: 4.8rem;
+  }
+}
+/* 编号：第二十九轮从 2.8rem 圆环改成 4rem 的**实心淡字**。
+   层级是这样排的：章节号 9.6rem 空心（最响）→ 流程号 4rem 实心 0.16 灰
+   （次响）→ 卡片/信条的圆环编号 2.8rem（最轻）。三种编号各差一档，
+   一眼能分出「章节 / 步骤 / 条目」三个层级 —— 之前它们全都是圆环，
+   大小一样、灰度也一样，等于没有层级。 */
+.process-num {
+  font-family: var(--font-mono);
+  font-size: clamp(2.8rem, 3.4vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.16);
+}
+.process-title {
+  font-family: var(--font-cjk);
+  font-size: clamp(2rem, 2.6vw, 2.8rem);
+  font-weight: 500;
+  color: #fff;
+  margin-top: 0;
+}
+.process-sub {
+  font-family: var(--font-cjk);
+  font-size: 1.4rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 0.6rem;
+}
+/* ≥64rem 时副标题挪到第三列、右对齐 —— 标题在左、注解在右，
+   中间那片空白就是「大气」的来源。窄屏没有第三列，它换行到标题下面。 */
+@media (min-width: 64rem) {
+  .process-sub { margin-top: 0; text-align: right; }
+}
+
+/* 下一页收集 */
+
+/* 第二十五轮：NEXT STORY 左栏回到左对齐（第二十四轮那三行居中规则去掉了）。
+   它本来就是「左文右表单」两栏，两栏都左对齐才成一套。 */
+/* 第二十八轮：NEXT STORY 两栏之间的纵向间距 4.8 → 8rem。
+   这一屏是「一句话 + 一张表单」，留白越大越像画册的末页。 */
+.next-story-grid { row-gap: 8rem; }
+.next-story-title { line-height: 0.98; letter-spacing: -0.02em; text-transform: none; }
+.next-story-arrows { color: var(--accent); }
+
+/* 项目简报表单 */
+.brief-form { row-gap: 2.4rem; }
+.brief-out {
+  margin-top: 2rem;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.04);
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.8);
+}
+.brief-out:empty { display: none; }
+
+/* ---------- 第二十一轮：常见问题页专属排版微调 ----------
+   1) 手风琴的问句是中文：Anton（含 VT323 一类展示体）没有中文字形，
+      会掉到系统默认字体，看着跟页面其它地方不是一套。这里显式指定思源黑体。
+   2) 站内 .field 只写了 input / textarea，select 走浏览器默认样式，
+      在深色底上是白底黑字 —— 这里补齐成同一套玻璃输入框。 */
+body[data-page="liquid-engine"] .accordion-trigger {
+  /* 第二十五轮：回到左对齐 —— 问句贴左边距，加号被 justify-content: space-between
+     顶到最右边（第二十四轮居中时那几条 justify-content: center / text-align: center
+     已经去掉了）。 */
+  align-items: flex-start;
+  font-size: 2rem;
+  text-transform: none;
+  line-height: 1.35;
+}
+body[data-page="liquid-engine"] .accordion-trigger > span:first-child {
+  font-family: var(--font-cjk);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+@media (min-width: 48rem) {
+  body[data-page="liquid-engine"] .accordion-trigger { font-size: 2.8rem; }
+}
+body[data-page="liquid-engine"] .accordion-trigger .capability-en {
+  margin-left: 1.2rem;
+}
+/* capabilities 标题里的英文小字跟着标题基线走 */
+body[data-page="liquid-engine"] .accordion-item.is-open .accordion-trigger { color: #fff; }
+body[data-page="liquid-engine"] .accordion-item.is-open .accordion-trigger .accordion-sign { color: var(--accent); }
+
+/* 第二十五轮：第二十四轮那组「限宽居中」的规则整块去掉了 ——
+   手风琴 / 能力标签 / 答案段落全部回到贴左边距，
+   答案段落的行宽上限交回 .accordion-panel 自带的 70ch。 */
+
+.field select {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) * 0.5);
+  padding: 1.6rem;
+  font-size: 14px;
+  font-family: var(--font-cjk);
+  color: inherit;
+  outline: none;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.5) 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5) 50%, transparent 50%);
+  background-position: calc(100% - 2.2rem) 2.6rem, calc(100% - 1.6rem) 2.6rem;
+  background-size: 0.6rem 0.6rem, 0.6rem 0.6rem;
+  background-repeat: no-repeat;
+}
+.field select:focus { border-color: rgba(255, 255, 255, 0.3); }
+.field select option { background: #101214; color: #fff; }
+
+/* =============================================================
+   第二十二轮：模特与演员（换一批 / 全部演员页 / 演员资料页）+ 关于我们
+   ============================================================= */
+
+/* ---------- 页头大字：年份 + 「近期高人气演员」 ---------- */
+.mv-year {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  letter-spacing: 0.34em;
+  color: var(--accent);
+  margin-bottom: 1.2rem;
+}
+
+/* ---------- 人物卡下方两颗长方形按钮 ---------- */
+.talent-actions {
+  display: flex;
+  align-items: stretch;
+  /* 第三十二轮（第六项）：这两颗按钮原来靠左（flex-start），
+     和上面居中的轮盘 / 名字对不齐 —— 整体居中之后才对得上。 */
+  justify-content: center;
+  gap: 1.6rem;
+  flex-wrap: wrap;
+  margin-top: 4.8rem;
+}
+.tw-btn {
+  position: relative;
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tw-btn .glass-surface-wrapper { border-radius: 0; overflow: hidden; }
+/* 第三十三轮（用户第三条）：框缩小、文字在框内**上下左右都居中**。
+   原来高 5.2rem / 左右内边距 2.6rem（外壳 195×54），文字靠
+   `inline-flex + align-items:center` 大致居中，但基线受行高 22.4px 影响，
+   上下留白实测是 15 / 15（看着偏下一点点）。
+   现在：外壳收到 **4.4rem 高、左右 1.9rem**（≈174×46），
+   并显式用 flex 三条线锁死居中 —— `align-items + justify-content + line-height: 1`
+   （行高归 1，文字盒就等于字形高，不会再被行高撑出上下不对称）。 */
+.tw-btn-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  height: 4.4rem;
+  padding-inline: 1.9rem;
+  line-height: 1;
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+  transition: color 0.3s linear, background 0.3s linear;
+}
+/* 框内的子元素一律垂直居中：.label / .talent-batch-count / 图标 */
+.tw-btn-inner > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+html[data-lang="zh"] .tw-btn-inner {
+  font-family: var(--font-cjk);
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+}
+.tw-btn:hover .tw-btn-inner { color: var(--accent); }
+.tw-btn-solid {
+  border: 1px solid var(--border-strong);
+  background: rgba(16, 18, 20, 0.42);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  transition: border-color 0.3s linear, background 0.3s linear;
+}
+.tw-btn-solid:hover { border-color: var(--accent); background: rgba(227, 255, 57, 0.06); }
+.tw-btn .icon-box svg { width: 1.6rem; height: 1.6rem; }
+.talent-batch-count { color: rgba(255, 255, 255, 0.4); letter-spacing: 0.14em; }
+/* 「第 [js-talent-batch] 批」里那个数字是个独立 span，
+   必须跟着父级一起垂直居中 —— 否则换了写法（比如 flex-start）它会顶到上沿。 */
+.talent-batch-count .js-talent-batch { display: inline-flex; align-items: center; line-height: 1; }
+
+/* 「换一批」时整块先淡出，换完再淡回来 */
+.js-works-list.is-talent { transition: opacity 0.18s linear, transform 0.18s linear; }
+.js-works-list.is-swapping { opacity: 0; transform: translateY(10px); }
+
+/* =============================================================
+   第三十一轮
+   （八）stills 页 MV 区：文字挪到左边、视频收小放到右边
+   （九）模特与演员区：中间一位抠图人物 + 身后一圈弧形环绕的选项
+   ============================================================= */
+
+/* ---------- （八）左文 / 右视频（第三十二轮重排） ----------
+   第四项：右栏视频从固定 48rem 放到「占整行三分之二」；
+          左侧文字按收窄后的栏宽重排 —— 年份 → 大字 → 导语三段，
+          与用户参考图（小字眉标 / 大标题 / 灰段导语）的节奏一致。
+   第五项：「模特与演员 MV · MAGIC TIME」搬出左栏，落到两栏之下整行，80px。 */
+.mv-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3.2rem;
+  align-items: center;
+}
+@media (min-width: 64rem) {
+  /* 第三十二轮是 1fr : 2fr（右栏视频正好占三分之二，1600 视口下 483 : 965）。
+     第三十三轮（用户第二条）标题要加大，而 Anton 下的汉字是**满字身**
+     （advance ≈ 1.0em）：7 个字 96px 就要 672px 单行。
+     把左栏从 483px 放宽到 **615px**（grid 0.82fr : 1.18fr，1600 视口下左 615 / 右 833），
+     标题取 **86px**（7×86 = 602px，稳稳单行）。
+     右栏占整行 0.554 —— 比原来的 0.666 收了，但仍明显大过左栏。 */
+  .mv-band { grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); gap: 5.6rem; }
+}
+.mv-band-copy { min-width: 0; }
+.mv-band-copy .mv-head { margin-bottom: 2.4rem; }
+/* 第四项：右栏视频涨到三分之二后，左栏只剩约 482px，
+   原来的「巨型年份 + 中号标题」在这个宽度里主次是反的（年份比标题还大）。
+   重排成参考图那套三段式：小字眉标 → 大标题 → 灰段导语。
+
+   第三十三轮（用户第二条）：两声「再大一些」——
+   ① 「2026」：原来 38px 的眉标 → **140px**（1600 视口），重新当回主角；
+   ② 「近期高人气演员」：52px → **96px**。
+   两者都用 clamp 跟着视口缩，窄屏不会撑破。 */
+.mv-band-copy .mv-year {
+  /* !important 是**有意**的：这一条要盖过 base.css 里最先定义的那个 `.mv-year`
+     （0,1,0 → 按源码顺序本该输给这里的 0,2,0，但可视化编辑器会把字号写回行内，
+     行内优先级最高 —— 用 !important 把控制权锁在样式表里）。 */
+  font-size: clamp(4.8rem, 8.75vw, 14rem) !important;   /* 1600 视口 = 140px */
+  font-weight: 700;
+  letter-spacing: 0.06em;                     /* 字号上去后字距要收，否则 4 位数字会飘出去 */
+  color: var(--accent);
+  margin-bottom: -0.08em;                     /* 大字自带一大截行高留白，负边距压回来 */
+  line-height: 1;
+}
+.mv-band-copy .mv-title {
+  /* 栏宽 615px（见上面 .mv-band 的 0.82fr），Anton 的汉字 advance ≈ 1.0em：
+       86px × 7 = 602px → 单行，留 13px 余量；
+       96px × 7 = 672px → 折两行（试过，栏宽要到 680px 才放得下，那样视频栏就太小了）。
+     所以定 86px，并把系数写对：86/1600 = **5.375vw**
+     （写错成 3.5vw 只会得到 56px，比改之前还小）。 */
+  font-size: clamp(4.4rem, 5.375vw, 8.6rem);
+  line-height: 1.04;
+}
+.mv-band .mv-figure { margin: 0; }
+/* 第五项：整段标题落到两栏之下、占满整行。
+   5vw @1600 = 80px，正好是用户要的字号。 */
+.mv-band .mv-caption-title {
+  grid-column: 1 / -1;
+  display: block;
+  margin-top: 2.4rem;
+  font-size: clamp(3.2rem, 5vw, 8rem);
+  white-space: normal;
+}
+
+/* ---------- （九）弧形环绕轮盘 ---------- */
+.talent-wheel-widget { margin-top: 6.4rem; }
+.talent-wheel {
+  position: relative;
+  height: 30rem;
+  perspective: 1400px;
+  transform-style: preserve-3d;
+  outline: none;
+  cursor: grab;
+  touch-action: pan-y;
+  contain: layout paint;
+  /* 第三十二轮：这一块原来铺着两条渐变（径向 + 纵向），
+     而容器当时只有 1180px 宽 —— 于是在深色页面上显出一个**带硬边的矩形垫板**。
+     现在改成一层「够不着边」的柔光：到 70% 就完全透明，
+     远看只是人物从暗处浮出来，看不出容器的边界。 */
+  background: radial-gradient(70% 88% at 50% 118%, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 70%);
+}
+@media (min-width: 48rem) { .talent-wheel { height: 38rem; } }
+@media (min-width: 64rem) { .talent-wheel { height: 46rem; } }
+/* 第三十二轮（第六项）：轮盘要占满整个 gutter。
+   上一轮它是从「人物卡网格」改过来的，网格时代的
+   `.js-works-list.is-talent { display: grid; max-width: 118rem }` 还留在身上 ——
+   于是容器只有 1180px 宽、正中那张的圆心落在 x≈638，
+   而下方「姜寅 模特」是按整行居中的 x≈800，两者差了 160px，看着就是偏的。 */
+.talent-wheel.js-works-list.is-talent {
+  display: block;
+  max-width: none;
+}
+.talent-wheel.is-dragging { cursor: grabbing; }
+.talent-wheel.is-dragging .tw-figure,
+.talent-wheel.is-dragging .tw-fore { transition: none !important; }
+
+.tw-figure,
+.tw-fore {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  margin: 0;
+  transform-origin: bottom center;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+.tw-figure img,
+.tw-fore img { display: block; width: 100%; height: auto; }
+
+/* 身后那一圈：小、暗、虚，越远越糊 —— 景深全靠这三样撑 */
+.tw-figure {
+  width: 12.6rem;
+  z-index: 10;
+  opacity: var(--tw-op, 0.55);
+  filter: brightness(var(--tw-dim, 0.85)) blur(var(--tw-blur, 0.6px));
+  transition: transform 0.5s var(--ease-expo-out), opacity 0.45s linear, filter 0.45s linear;
+  cursor: pointer;
+}
+/* 前景那位：大、实、亮，脚下带一层投影把它从弧线上「拔」出来。
+   注意 transform 里的 translateX(-50%)：小圈那些块是 JS 逐帧写
+   translate3d(calc(-50% + Xpx)) 才居中的，前景没有 JS 写 transform，
+   所以这半边必须由 CSS 自己补上，否则它整块右移半个身位。 */
+.tw-fore {
+  width: 25.2rem;
+  transform: translateX(-50%);
+  z-index: 40;
+  filter: drop-shadow(0 26px 50px rgba(0, 0, 0, 0.65));
+  transition: transform 0.5s var(--ease-expo-out), opacity 0.45s linear;
+  cursor: pointer;
+}
+@media (min-width: 48rem) {
+  .tw-figure { width: 15.2rem; }
+  .tw-fore { width: 26.6rem; }
+}
+@media (min-width: 64rem) {
+  /* 前景 28rem（=280px，按 680:872 换算高约 359px）。
+     这个宽度是量出来的：身后 ±1 那两位的圆心在 x ≈ 192px，
+     28rem 的半宽 140px 正好让它们露出约 3/4 —— 再宽就把 ±1 整个盖住了。 */
+  .tw-figure { width: 17.4rem; }
+  .tw-fore { width: 28rem; }
+}
+
+/* 名字 + 模特/演员标签 */
+.tw-meta {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.6rem;
+  margin-top: 2.4rem;
+  text-align: center;
+}
+.tw-name {
+  font-family: var(--font-heading);
+  font-size: 2.6rem;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+html[data-lang="zh"] .tw-name { font-family: var(--font-cjk); font-size: 2.4rem; letter-spacing: 0.02em; }
+.tw-role {
+  font-family: var(--font-mono);
+  font-size: 1.2rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+html[data-lang="zh"] .tw-role { font-family: var(--font-cjk); font-size: 1.3rem; letter-spacing: 0.14em; }
+@media (min-width: 64rem) {
+  .tw-name { font-size: 3.2rem; }
+  .tw-role { font-size: 1.3rem; }
+}
+
+/* ---------- 全部数字演员页 ---------- */
+.actor-filters {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  margin-top: 4rem;
+}
+.actor-filters-key { margin-right: 0.8rem; text-transform: uppercase; }
+.chip {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 1rem 1.8rem;
+  cursor: pointer;
+  transition: color 0.25s linear, border-color 0.25s linear, background 0.25s linear;
+}
+.chip:hover { color: #fff; border-color: rgba(255, 255, 255, 0.26); }
+.chip.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(227, 255, 57, 0.06);
+}
+html[data-lang="zh"] .chip {
+  font-family: var(--font-cjk);
+  font-size: 1.3rem;
+  letter-spacing: 0.06em;
+}
+.actor-count { margin-left: auto; white-space: nowrap; }
+
+.actor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3.2rem 1.6rem;
+  /* 第二十五轮：名册扩到 15 位，要求「小一些、整齐排列」。
+     15 只能被 3 和 5 整除 —— 所以断点定成 2 / 3 / 5，
+     每个断点都排成整行，不会出现「最后一行只剩一张」的豁口
+     （6 列会排成 6+6+3）。
+     再给一个行宽上限：5 列铺满 1920 宽的屏幕时每张卡会涨到约 345px，
+     比上一版（6 列 ≈ 285px）还大，那就跟「小一些」正好相反了。
+     限到 118rem 之后每张卡稳定在 ≈ 226px，且换显示器不会忽大忽小。
+     第三十六轮（用户第一条「居中构图」）：这一版改了排布口径 ——
+     上一版是「一律从左边距起排、右侧留白」，1600 视口下 1180 宽的网格
+     右侧空出 372px，看上去像没排完。现在改成**水平居中**：
+     网格 margin-inline:auto 居中，卡片内的名字/副标也居中（见 .actor-card-meta），
+     整个名册成为一块稳定的居中构图，左右留白对称。
+     页头与筛选条仍按原来的 12 栏左边距排版。 */
+  max-width: 118rem;
+  margin-inline: auto;
+}
+@media (min-width: 48rem) {
+  .actor-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3.2rem 1.8rem; }
+}
+@media (min-width: 80rem) {
+  .actor-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2.8rem 1.6rem; }
+}
+.actor-card { display: block; color: inherit; }
+.actor-card-media {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  aspect-ratio: 2 / 3;
+  background: #0c0e0f;
+  transition: border-color 0.35s linear;
+}
+.actor-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* 第二十五轮：抽色从 0.32 降到 0.1。
+     上一批是暗调棚拍肖像，压掉色彩才显得统一；
+     这一批是纯白背景的彩色服装棚拍 —— 抽掉三成色彩，蓝卫衣、芥黄背带裤、
+     薄荷运动服的撞色就全部变成灰的了，等于把用户选这批图的原因抹掉。 */
+  filter: grayscale(0.1) contrast(1.03);
+  transition: filter 0.5s var(--ease-expo-out), transform 0.8s var(--ease-expo-out);
+}
+.actor-card:hover .actor-card-media { border-color: var(--accent); }
+.actor-card:hover .actor-card-media img { filter: grayscale(0) contrast(1.06); transform: scale(1.04); }
+.actor-card-badge {
+  position: absolute;
+  left: 1.2rem;
+  top: 1.2rem;
+  z-index: 2;
+  background: rgba(10, 12, 13, 0.72);
+  color: var(--accent);
+  padding: 0.4rem 0.8rem;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+/* 第三十六轮（用户第一条「居中构图」）：名字与副标改成居中 ——
+   卡片本身已在网格里居中，卡内文字跟着居中，整体才是完整的居中构图。
+   图上的 .actor-card-badge 仍是左上角标，不动（它是画面角标，不是文案）。 */
+.actor-card-meta { display: block; padding-top: 1.4rem; text-align: center; }
+.actor-card-name {
+  display: block;
+  font-family: var(--font-heading);
+  /* 第二十五轮：卡片收小后名字跟着收一档（2rem → 1.7rem），
+     否则一行名字会把 226px 的卡撑成两行，网格的下沿就参差不齐了。 */
+  font-size: 1.7rem;
+  line-height: 1.05;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+html[data-lang="zh"] .actor-card-name {
+  font-family: var(--font-cjk);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.actor-card-sub { display: block; margin-top: 0.6rem; text-transform: uppercase; }
+
+/* ---------- 第三十六轮（用户第四条）：页头右侧的「返回」按钮 ----------
+   左上角那枚 .proj-back「后退」是一行淡灰小字（90×42、字号 11px），
+   在一屏大标题下面几乎看不见。这一枚做成跟站内其它按钮同一套的玻璃胶囊，
+   放在标题行右侧、右对齐 —— 与「全部数字演员」同行，一眼能找到。
+   它同样带 .js-page-back，back.js 用 querySelectorAll 绑定，
+   两枚按钮共用一套「回上一页」判据。 */
+.actors-head-aside {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  margin-top: 2.4rem;
+}
+@media (min-width: 48rem) {
+  /* 与左边大标题同行：撑满行高后把按钮放在垂直中部，读起来是一条基线 */
+  .actors-head-aside { margin-top: 0; align-items: center; }
+}
+.actors-back { display: inline-flex; text-decoration: none; }
+.actors-back .icon-box { background: rgba(255, 255, 255, 0.16); }
+/* #arrow 是指向右上的 45° 箭头，转 180° 才是「返回」 */
+.actors-back .icon-box svg { transform: rotate(180deg); }
+html[data-lang="zh"] .actors-back .label {
+  font-family: var(--font-cjk);
+  letter-spacing: 0.08em;
+}
+
+/* ---------- 第三十八轮（用户第六 / 七条）：页头整体居中 ----------
+   用户选中的是「全部数字演员 / 返回 / 类型 全部 男性 女性 少年 中老年 15 位演员」
+   这三块，原话「整体居中」。所以拆成两件事：
+
+   ① 标题 + 返回按钮这一行**整组居中**。返回按钮的位置不动（仍在标题右侧）——
+      用户在提问里明确选的是「位置不动，只做内部居中并缩小」，
+      所以这里只把这一行的排布从「9 / 3 两列栅格」改成「一组居中的 flex」，
+      按钮相对标题的关系没变。
+   ② 类型筛选条 + 计数**整体居中**。原来是一个贴左边距、一个被
+      `margin-left: auto` 顶到最右，两头拉开；现在并成一组居中。
+      计数缩到 0.4rem 的小间距，读作筛选条的一部分。
+
+   只作用在 .actors-head 上 —— `.grid.grid-cols-12` 是全站工具类，别去改它本身。 */
+.actors-head .grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 3.2rem;
+}
+.actors-head h1 { text-align: center; }
+.actors-head .actors-head-aside {
+  flex: none;
+  justify-content: center;
+  align-items: center;
+  margin-top: 0;
+}
+.actors-head .actor-filters { justify-content: center; }
+.actors-head .actor-count { margin-left: 0.4rem; }
+
+/* 返回按钮（第三十八轮）：内部上下左右居中 + 整体缩小一档。
+   .btn / .icon-box 本来就是 inline-flex + 两项都居中，这里主要收尺寸：
+   高 5.6 → 4.4rem、横向内边距 2.4 → 1.8rem、图标盒 2 → 1.8rem、
+   字号 12 → 11px、间距 0.8 → 0.6rem（外壳实测 150×56 → 约 118×44）。 */
+.actors-back .glass-surface-content {
+  height: 4.4rem;
+  padding-inline: 1.8rem;
+  gap: 0.6rem;
+}
+.actors-back .icon-box { width: 1.8rem; height: 1.8rem; }
+.actors-back .label { font-size: 11px; }
+
+/* ---------- 演员资料页：HERO（全身照居右，压在名牌之上） ---------- */
+.talent-hero2 { padding-block: 4rem 0; }
+.th-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+.th-type {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* flex-start：否则身份 badge 会被拉成横跨整列的一条长条 */
+  align-items: flex-start;
+  gap: 2.4rem;
+}
+.th-lower { display: flex; flex-direction: column; }
+.th-name {
+  /* 第二十三轮：名称整体挪到左侧（原来是居中铺满整行、被人物的腿挡掉中段）。
+     左列比整行窄，字号跟着收一档，仍然是最重的那行字。 */
+  text-align: left;
+  font-family: var(--font-heading);
+  font-size: clamp(3.8rem, 6.8vw, 9.6rem);
+  line-height: 0.88;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: #fff;
+}
+html[data-lang="zh"] .th-name {
+  font-family: var(--font-cjk);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  font-size: clamp(3.4rem, 6.2vw, 8.6rem);
+}
+.th-bio {
+  max-width: 40ch;
+  margin-top: 2.4rem;
+  font-family: var(--font-cjk);
+  font-size: 1.5rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.72);
+}
+.th-figure { position: relative; z-index: 2; margin: 3.2rem 0 0; }
+.th-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* 左边柔边：人物从暗背景里"浮"出来，不会盖出一个硬邦邦的矩形 */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 100%);
+}
+@media (min-width: 64rem) {
+  /* 左列文字 / 右列全身照；名称安分待在左列里，不再跨到人物身上 */
+  .th-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 44%); }
+  .th-type { grid-column: 1; grid-row: 1; }
+  .th-figure { grid-column: 2; grid-row: 1; margin: 0; }
+  .th-lower { margin-top: 0; }
+}
+
+/* ---------- 演员资料页：基本信息 ---------- */
+.tb-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3.2rem;
+}
+@media (min-width: 48rem) {
+  /* 第二十三轮：多了「适合」这一栏，共 4 项 —— 排 2×2 比挤一行 4 列好读得多 */
+  .tb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4rem; }
+}
+.tb-item { border-top: 1px solid var(--border-strong); padding-top: 1.6rem; }
+.tb-key { display: block; text-transform: uppercase; }
+.tb-val {
+  display: block;
+  margin-top: 1.2rem;
+  font-family: var(--font-cjk);
+  font-size: 1.5rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.8);
+}
+.tb-item.is-num .tb-val {
+  font-family: var(--font-heading);
+  font-size: 6.4rem;
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.talent-meta { margin-top: 4.8rem; }
+
+/* ---------- 演员资料页：不同情绪近景 ---------- */
+.mood-note { margin-bottom: 3.2rem; max-width: 60ch; }
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.6rem;
+}
+@media (min-width: 64rem) {
+  .mood-grid { gap: 2.4rem; }
+}
+.mood-item { margin: 0; }
+.mood-media {
+  display: block;
+  overflow: hidden;
+  border-radius: calc(var(--radius) * 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  aspect-ratio: 2 / 3;
+  background: #0c0e0f;
+  transition: border-color 0.35s linear;
+}
+.mood-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* 第二十五轮：三档景别都是同一张彩色棚拍裁出来的，抽色同样收到 0.1 */
+  filter: grayscale(0.1) contrast(1.03);
+  transition: filter 0.5s var(--ease-expo-out), transform 0.8s var(--ease-expo-out);
+}
+.mood-item:hover .mood-media { border-color: var(--accent); }
+.mood-item:hover .mood-media img { filter: none; transform: scale(1.03); }
+.mood-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin-top: 1.2rem;
+  color: rgba(255, 255, 255, 0.62);
+  text-transform: uppercase;
+}
+.mood-num { color: var(--accent); font-family: var(--font-mono); }
+
+/* =============================================================
+   声音页 · 案例作品墙（第三十七轮新增）
+   narrative.html 下方那一整块：页眉 + 类型筛选条 + 案例卡网格。
+   之前这里是「Grid / Carousel / List 三视图 + 4 支英文短片」（跟"声音"
+   这个栏目对不上），现在按五类声音能力组织 —— 结构与内容见
+   data.js 的 narrative.soundTypes / soundCases，渲染在 js/sound.js。
+   这里只管皮：深色卡、橙黄类型标、程序化波形、视觉试听态。
+   ============================================================= */
+.sound-cases { border-top: 4px solid var(--border); }
+.sound-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2.4rem;
+  flex-wrap: wrap;
+  margin-bottom: 4.8rem;
+}
+.sound-head-l { display: flex; flex-direction: column; align-items: flex-start; gap: 1.2rem; }
+.sound-head-title { margin: 0; }
+.sound-head-intro { max-width: 58ch; margin: 0; }
+.sound-head-r { display: flex; align-items: baseline; gap: 1rem; padding-bottom: 0.4rem; }
+.sound-count { font-family: var(--font-mono); font-size: 3.6rem; line-height: 1; color: var(--accent); }
+
+.sound-types { display: flex; flex-wrap: wrap; gap: 1.2rem; margin-bottom: 4rem; }
+.sound-type-num { display: inline-block; margin-left: 0.8rem; opacity: 0.45; font-size: 0.9em; }
+
+.sound-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.4rem; }
+@media (min-width: 48rem) { .sound-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .sound-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.8rem; } }
+.sound-empty { grid-column: 1 / -1; }
+
+.sound-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+  padding: 2.6rem;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 1.6rem;
+  background: rgba(255, 255, 255, 0.022);
+  transition: border-color 0.3s linear, background-color 0.3s linear;
+}
+/* 顶部一条橙黄细线：悬停 / 播放时从左往右拉开（比整卡变色轻，不抢波形） */
+.sound-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--accent-warm);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.5s var(--ease-expo-out);
+}
+.sound-card:hover::after,
+.sound-card.is-playing::after { transform: scaleX(1); }
+.sound-card:hover { border-color: rgba(255, 255, 255, 0.24); background: rgba(255, 255, 255, 0.045); }
+
+.sound-card-top { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; }
+.sound-card-idx {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.34);
+}
+.sound-card-type {
+  flex: none;
+  font-family: var(--font-cjk);
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  color: var(--accent-warm);
+  padding: 0.45rem 1.1rem;
+  border: 1px solid rgba(255, 176, 32, 0.34);
+  border-radius: 9999px;
+  background: rgba(255, 176, 32, 0.06);
+  white-space: nowrap;
+}
+.sound-card-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  line-height: 1.06;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+html[data-lang="zh"] .sound-card-title {
+  font-family: var(--font-cjk);
+  font-weight: 700;
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* 程序化波形：条高由 JS 写死的 --h（0~100），同一案例永远同一条 */
+.sound-wave { display: flex; align-items: center; gap: 2px; height: 5.2rem; }
+.sound-wave i {
+  flex: 1 1 auto;
+  min-width: 1px;
+  height: calc(var(--h) * 1%);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.26);
+  transform-origin: center center;
+  transition: background-color 0.3s linear;
+}
+.sound-card:hover .sound-wave i { background: rgba(255, 255, 255, 0.44); }
+.sound-card-desc { margin: 0; font-size: 13px; line-height: 1.65; color: rgba(255, 255, 255, 0.72); }
+.sound-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; margin-top: auto; }
+.sound-tag {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+html[data-lang="zh"] .sound-tag {
+  font-family: var(--font-cjk);
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+.sound-dur { margin-left: auto; font-family: var(--font-mono); font-size: 1.2rem; color: rgba(255, 255, 255, 0.5); }
+
+.sound-card-foot { display: flex; align-items: center; gap: 1.4rem; }
+.sound-play {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.8rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.25s linear, border-color 0.25s linear, background-color 0.25s linear;
+}
+html[data-lang="zh"] .sound-play { font-family: var(--font-cjk); font-size: 1.25rem; letter-spacing: 0.08em; }
+.sound-play:hover { border-color: rgba(255, 255, 255, 0.42); background: rgba(255, 255, 255, 0.08); }
+.sound-play-icon {
+  width: 0;
+  height: 0;
+  border-left: 0.9rem solid currentColor;
+  border-top: 0.6rem solid transparent;
+  border-bottom: 0.6rem solid transparent;
+}
+.sound-progress {
+  position: relative;
+  flex: 1 1 auto;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.sound-progress i { display: block; width: 0; height: 100%; background: var(--accent-warm); }
+
+/* 播放态（当前是纯视觉：波形跳动 + 进度按 dur 走完；有 audio 时同时出声） */
+.sound-card.is-playing { border-color: rgba(255, 176, 32, 0.34); }
+.sound-card.is-playing .sound-card-type { color: #0a0c0d; background: var(--accent-warm); border-color: var(--accent-warm); }
+.sound-card.is-playing .sound-wave i {
+  background: var(--accent-warm);
+  animation: soundBar 0.78s ease-in-out infinite alternate;
+  animation-delay: calc(var(--h) * -0.008s);
+}
+.sound-card.is-playing .sound-play { border-color: var(--accent-warm); color: var(--accent-warm); }
+.sound-card.is-playing .sound-play-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 0;
+  background: currentColor;
+  border-radius: 1px;
+}
+@keyframes soundBar {
+  from { transform: scaleY(0.42); }
+  to { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sound-card.is-playing .sound-wave i { animation: none; }
+  .sound-card::after { transition: none; }
+}
+
+/* ---------- 内页正文版式：左侧对齐 · 简约高级（第二十五轮改回） ----------
+   这三轮里这一块来回改过两次，把来龙去脉记清楚，免得下次再当新需求做：
+     第二十三轮：原来是「最左一列摆分区标签、正文从第 4～5 栏起排」，
+                 看着像一份右移的文档，改成**一律从左边距起排、右侧留白**；
+     第二十四轮：用户看过成品后要**居中**，于是 .page-col 变成居中容器
+                 （margin-inline:auto + text-align:center，正文各块再补 auto 外边距）；
+     第二十五轮：用户又要**左对齐** —— 就是回到第二十三轮那一版。
+   所以下面这些数值是第二十三轮实测过的原值（.page-col 96rem、
+   正文 62ch、四张卡 gap:0 连成一条通栏细线），不是重新拍的。
+   两个隐藏坑（第二十四轮踩出来的）在这里一并记下，省得下次居中时再踩：
+     · 只写 text-align:center 不够 —— max-w-* 收窄的是「盒子」，
+       盒子本身仍贴左，长段落看着就是一个歪掉的色块，必须配 margin-inline:auto；
+     · base.css 给 [class*="type-heading-"] 配了 translate: calc(0.05em * -1),
+       那是给**左对齐**做的光学左移（把字母左侧空白抵掉一点）。
+       居中时它会让标题整体偏左且随字号放大（80px 偏 4px、120px 偏 6px），
+       必须显式归零。左对齐版式里它是正解，所以这里不写。 */
+.page-col {
+  width: 100%;
+  /* 只在超宽屏上兜一个行宽上限，免得行宽失控。 */
+  max-width: 96rem;
+}
+/* 第二十七轮：小字引题升级成**索引条** ——
+     §01 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  AXIE的初心 ─ ─ ─  SHARED VISIONS
+   原来两页六个区块都长一个样（一枚小字标签），滚起来分不清读到第几节；
+   现在每节有编号、有虚线 leader、右侧有英文小字，一眼能定位。
+   注意改成 flex 之后**盒子宽度仍然撑满** .page-col —— verify-all 的 N-* 断言
+   要拿它的 rect.left 判「贴左边距」，加 padding-left / margin-left 会直接顶掉。 */
+/* 第二十八轮：从「目录索引条」改成「画册栏头」——
+   上一版的虚线 leader 用 flex:1 一路撑到区块右端，把 §01 和大标题之间
+   连成一条横贯屏幕的虚线 —— 那是产品目录的语气。奢侈品画册不放这种线，
+   它靠**字距**和**留白**定位章节。所以字号降到 1.1rem、字距拉到 0.3em，
+   leader 从撑满改成 3.2rem 的短细线。
+   第二十九轮：栏头再往上提一档 —— **编号变成巨型空心数字**。
+   奢侈品画册区分章节靠的是**尺度反差**，不是线的粗细：引题小到 1rem、
+   编号大到 9.6rem，中间不留中间档。编号做成空心（text-stroke）、灰度只有
+   0.22 —— 巨大但极轻，像印在纸背面的水痕，只负责定位，不抢正文。
+   两个实现上的坑：
+     · 字体**仍用 mono 而不是 heading** ——「§」在 Anton 里没有字形，会被
+       fallback 成别的字体，和同一行的数字凑成两种字，一眼就露馅；
+     · -webkit-text-stroke 万一不被支持，color:transparent 会让整个编号
+       **彻底消失**（那就白设计了）。所以默认给一个极淡的实心色兜底，
+       再用 @supports 升级成空心。 */
+.page-kicker {
+  display: flex;
+  align-items: center;
+  /* 第三十轮：栏头搬进左窄索引栏（4/12 列 ≈ 250~400px）之后，
+     中等屏（64–90rem）那档会挤 —— 巨型编号 + 竖线 + 英文小字排不进 250px。
+     加 flex-wrap 让「名称 / 英文」这一列在放不下时整体掉到编号下面，
+     而不是把英文小字压成两三行的窄条。 */
+  flex-wrap: wrap;
+  gap: 2.8rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  /* 这里不用 uppercase：中文引题里有「AXIE的初心」这种大小写混排的写法，
+     一律转大写会把已经是大写的 AXIE 之外的部分也改掉，跟给定文案对不上；
+     英文引题（SHARED VISIONS / WHAT WE DO）在源码里本来就是大写。 */
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.46);
+  /* 4 → 5.6rem：栏头现在是 ~96px 高的一块，和大标题之间要按「两块」留 */
+  margin-bottom: 5.6rem;
+}
+/* 巨型空心编号（第二十九轮） */
+.pk-no {
+  flex: none;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: clamp(4.8rem, 7.4vw, 9.6rem);
+  /* 0.78 是故意压的：数字没有下伸部，默认行高会在上下各留一大块空，
+     按正常行高排，编号和右侧文字块就对不齐。 */
+  line-height: 0.78;
+  letter-spacing: -0.04em;
+  /* 兜底色（见上面注释）：不支持 text-stroke 时至少还是个能看见的淡字 */
+  color: rgba(255, 255, 255, 0.12);
+}
+@supports (-webkit-text-stroke: 1px #fff) {
+  .pk-no {
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(255, 255, 255, 0.22);
+  }
+}
+/* 分隔竖线：第二十八轮它是 3.2rem 的横细线，这一轮改成**竖细线**。
+   编号变成 96px 高之后，横着画一条 3.2rem 的短线挂在旁边毫无意义；
+   竖线能把「编号块」和「名称块」干净地切开，高度跟着编号走（stretch）。
+   元素**必须留着** —— verify-all 的 ED1 断言按 .pk-rule 是否存在判
+   「这个区块有没有索引条」。 */
+.pk-rule {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.14);
+}
+/* 窄屏放不下竖线，让它消失，编号和名称挨着排 */
+@media (max-width: 47.99rem) { .pk-rule { display: none; } }
+/* 名称 + 英文竖排成一列（第二十九轮新增的包裹层）：
+   编号巨大之后，名称如果还和它同一行挤着，英文小字会被推到很远的地方。
+   第三十轮：加 min-width:0 —— 不然 flex 项默认 min-width:auto，
+   英文小字撑不开时会把整条栏头顶出索引栏（溢出到右边的内容列上）。 */
+.pk-text { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+/* <i> 默认是斜体，索引条里的中文不能斜 —— 中文没有真正的斜体，
+   浏览器会做倾斜变形（faux italic），看着就是歪的。 */
+.pk-name {
+  flex: none;
+  font-style: normal;
+  font-family: var(--font-cjk);
+  font-size: 1.6rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.8);
+}
+/* 英文小字：比中文名再淡两档，字距拉到 0.3em */
+.page-kicker-en {
+  flex: none;
+  font-style: normal;
+  margin-left: 0;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.26);
+}
+
+/* ---------- 关于我们 / 常见问题 的排印（第二十三轮立、第二十四轮改居中、
+   第二十五轮改回左侧对齐） ----------
+   这两页的正文只有中文（没有英文版），所以字体直接写死 CJK 那一套，
+   不再按 data-lang 切换 —— 否则切到 EN 时大字会落到 Anton 上，
+   而 Anton 没有中文字形，只能回落到系统字体，字号一大就露馅。 */
+.page-title {
+  font-family: var(--font-cjk);
+  font-weight: 900;
+  font-size: clamp(4.4rem, 7.4vw, 10.4rem);
+  line-height: 0.98;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+/* 第二十三轮：大字标题从「好创意…」换成「关于我们」，
+   原来那句主张降一级，但仍是最重的一行字，压在标题下面。 */
+/* 第二十八轮：主张句上限从 4.8rem 提到 5.6rem。
+   奢侈品的字号对比是**拉满**的：引题小到 1.1rem、主张大到 5.6rem，
+   中间不留中间档。这也是为什么正文要同时收窄 —— 两端拉开才有张力。 */
+.about-lede {
+  margin-top: 3.2rem;
+  font-family: var(--font-cjk);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 3.6vw, 5.6rem);
+  line-height: 1.24;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+/* 第二十五轮：正文段落回到左对齐。
+   第二十八轮：行宽从 62ch 收窄到 **56ch**、行高 1.9 → 2.0、段间距 2.4 → 3.6rem。
+   奢侈品画册的正文一律「窄而松」—— 行长一旦超过 60 个字符，眼睛回扫时
+   就会丢行，读起来是网页而不是画册。收窄行宽 + 加大行距是把密度降下来的
+   最有效手段，比调字号安全得多（字号一降就伤可读性）。 */
+.about-body p {
+  font-family: var(--font-cjk);
+  font-size: 1.5rem;
+  line-height: 2;
+  color: rgba(255, 255, 255, 0.7);
+  max-width: 56ch;
+}
+.about-body p + p { margin-top: 3.6rem; }
+/* 第二十三轮：引题已挪到 .about-creed 上方，
+   所以这里去掉自带的顶线与 padding —— 否则会和分区的那条 4px 横线叠成双线。 */
+/* 第二十八轮：三行之间的间距 1.2 → 2.4rem。
+   这三行是 2~3.2rem 的大字，1.2rem 的行间距让它们挤成一块「字墙」——
+   奢侈品排版里大字之间要么行距极紧（故意压成一体），要么干脆松开透气，
+   中间值最难看。既然这里的语气是「三句独立的主张」，就选松开。 */
+.about-creed {
+  display: grid;
+  gap: 2.4rem;
+}
+.about-creed-line {
+  font-family: var(--font-cjk);
+  font-size: clamp(2rem, 3.2vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+/* 四张卡：第二十五轮回到左对齐版 —— 铺满内容区宽度、gap 归零，
+   四张卡顶上那条 1px 于是连成一条通栏细线（居中版里才需要断开成四条）。 */
+/* 第二十八轮：四张卡与正文之间留 8rem（原 4.8rem）。
+   卡片顶上那条 1px 是通栏细线，留白够了它才像「分隔页」而不是「表格」。
+   第二十九轮：**撤掉 4 列断点，宽屏也保持 2×2**。
+   四列在 1440 屏上每张卡只有 ~230px ——「POST &amp; SOUND」这种英文标题要折行，
+   编号圆环、英文、中文、描述四种元素挤在 230px 里，就是一张规格表。
+   改成 2×2 后每张 ~470px：英文标题能一行放下，卡内留白也给得起。
+   gap 的处理也跟着变：列间留 6.4rem 呼吸，行间仍归零 ——
+   两张卡的顶线在行内连起来，纵向靠卡内 8rem 的下留白分隔。 */
+.about-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-top: 8rem;
+}
+@media (min-width: 48rem) {
+  .about-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 6.4rem;
+  }
+}
+/* 第二十八轮：卡片内边距上下都放大（2.4/4 → 3.2/6.4rem）。
+   四张卡横向是「通栏细线」的连排，纵向就得给足呼吸，否则四张卡挤成一屏，
+   一眼看过去是规格表。 */
+.about-card {
+  border-top: 1px solid var(--border-strong);
+  /* 第二十九轮：2×2 之后每张卡有 ~470px 宽，留白可以按「一屏一张」给：
+     上下 4.8 / 8rem，右边 6.4rem 让描述不至于顶到下一列。
+     左边仍是 0 —— N-* 断言拿它的 rect.left 判贴左边距，一加就红。 */
+  padding: 4.8rem 6.4rem 8rem 0;
+}
+/* 第二十七轮：01 包进描边圆环（印刷套准标记那种圆）
+   第二十八轮：圆环缩到 2.8rem、描边从 0.24 淡到 0.18 —— 一件装饰如果
+   在小尺寸下还看得清清楚楚，就该再淡一档。 */
+.about-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.about-en {
+  display: block;
+  margin-top: 2rem;
+  font-family: var(--font-heading);
+  font-size: 3.6rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.about-zh {
+  display: block;
+  margin-top: 0.8rem;
+  font-family: var(--font-cjk);
+  font-size: 1.6rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+.about-card-desc {
+  margin-top: 2.4rem;
+  font-family: var(--font-cjk);
+  font-size: 1.4rem;
+  line-height: 1.85;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+
+/* =============================================================
+   内页「画册版式」设计系统（第二十七轮立 · 第二十八轮转向奢侈品）
+
+   关于我们 / 常见问题这两页原本六个区块长得一模一样（一枚小字引题 + 大标题
+   + 正文），滚起来分不清读到第几节。第二十七轮给它们套了一层「工作室手稿」的
+   包装，第二十八轮用户看完的反馈是**太满、不够大气**，要「奢侈品画册」的排版。
+   所以这一轮的方向不是加东西，而是**做减法 + 拉开呼吸**：
+
+   撤掉的（拥挤的两个来源）
+     · 稿纸点阵  2.2rem 的点阵铺满整个区块 —— 奢侈品不用底纹噪声，贵气来自留白
+     · 竖排侧标  和套准标记同在右边缘，两个装饰挤在一条 6rem 的带里
+
+   留下的（都往「更小 / 更淡 / 更松」调了一档）
+     · 索引条    §01 — 名称 — EN（虚线 leader 不再撑满，见 .page-kicker）
+     · 引导细线  栏头最前面一条 3.2rem 发丝线（画册里叫 eyebrow rule）
+     · 套准标记  1.8→1.4rem、灰度 0.28→0.16，右边缘只留这一件
+     · 手绘线    **每页只留一处**（正文里的删了），笔迹 1.5→1.2
+     · 首字下沉  关于我们正文第一段首字放大，杂志感
+     · 页边批注  去掉小标题，只留一行 10px / 灰度 0.3 的小字
+     · 圆环加号  手风琴的「+」包进描边圆环，展开转 45° 变「×」
+
+   奢侈品节奏的两根支柱（本轮真正的改动）
+     · **留白**    区块上下 6.4rem → 12rem；正文行宽 62ch → 56ch、行高 1.9 → 2.0、
+                   段间距 2.4 → 3.6rem；各栅格 gap / margin 普遍放大一档。
+                   行长超过 60 字符眼睛回扫会丢行，读起来是网页不是画册。
+     · **发丝线**  区块分隔线 4px → 1px。4px 是「分栏」的语气，1px 才是「翻页」。
+
+   两条硬约束（都是踩过的坑，改之前先看懂）：
+     1. 装饰**不能**把 .page-col / .page-kicker / .about-body p / .about-card /
+        .accordion-trigger / .creed-item / .process-step … 的 rect.left 推离
+        左边距 —— verify-all.js 的 N-* 断言就是拿它们判「左对齐」的，
+        容差只有「字号 × 0.06 + 1」像素。所以装饰一律走伪元素、绝对定位或
+        兄弟元素，**不要**给这些盒子加 padding-left / margin-left / translate。
+     2. 手风琴标题文案由 M1 断言按 textContent 逐条比（indexOf("AI") === 0），
+        所以 Q. / A. 前缀只能用 ::before 伪元素写 —— textContent 读不到伪元素。
+   ============================================================= */
+
+/* ---------- 区块容器：定位上下文 + 大留白 + 发丝线 ---------- */
+.ed-sec {
+  position: relative;
+}
+/* 第二十八轮：奢侈品节奏的两根支柱 —— **留白** 与 **发丝线**。
+   · 留白：区块上下从 py-64 的 6.4rem 提到 12rem（窄屏 7.2rem）。
+     上一版六个区块挤在 6.4rem 的间距里，再叠上底纹和虚线，读出来是
+     「信息密度」而不是「呼吸」。奢侈品画册一页只放一件事，代价就是空白，
+     所以这里宁可让用户多滚两屏，也不把两节并进一眼。
+   · 发丝线：分隔线从 border-t-4 的 4px 改回 1px。
+     4px 的黑线是「分栏」的语气，1px 才是「分页 / 翻页」的语气。
+   选择器写成 .ed-sec.py-64（权重 0,2,0）而不是单 .ed-sec（0,1,0）：
+   生成器在 section 上同时挂这两个类，而 .py-64 定义在 base.css 里，
+   单靠 .ed-sec 要赌两个样式表的加载顺序 —— 既然后者稳赢，就别赌。 */
+.ed-sec.py-64 {
+  padding-block: 7.2rem;
+  border-top-width: 1px;
+}
+@media (min-width: 64rem) {
+  .ed-sec.py-64 { padding-block: 12rem; }
+}
+/* 套准标记（registration mark）：印刷对版用的「圆 + 十字」。
+   绝对定位在区块右上角，不参与布局，也就不会影响任何元素的 rect.left。
+   第二十八轮：右边缘现在**只剩它一件**装饰 —— 竖排侧标撤了，
+   所以可以往回收（right 1.6→2.4rem）、变小（1.8→1.4rem）、变淡（0.28→0.16）。
+   奢侈品画册的边角装饰都是「看得见但读不出内容」的量级，压过一点就成噪音。 */
+.ed-reg {
+  position: absolute;
+  top: 0;
+  right: 2.4rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.ed-reg::before,
+.ed-reg::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.16);
+}
+.ed-reg::before { left: 50%; top: -0.3rem; bottom: -0.3rem; width: 1px; }
+.ed-reg::after { top: 50%; left: -0.3rem; right: -0.3rem; height: 1px; }
+/* 窄屏右上角会贴到正文，收掉 */
+@media (max-width: 63.99rem) { .ed-reg { display: none; } }
+
+/* ---------- 已撤掉的两个装饰（第二十八轮）----------
+   · .ed-paper 稿纸点阵：2.2rem 的点阵铺满整个区块，是上一版最刺眼的「密」。
+     奢侈品画册从不用底纹噪声 —— 贵气来自留白，不是来自材质。
+   · .ed-vrail 竖排侧标：和套准标记同在右边缘，两个装饰挤在一条 6rem 的带里。
+     留一件就够，撤掉的是信息量为零的那件。
+   两条规则**连同生成器的输出一起删**（不是 display:none 留着），
+   免得下次有人看见类名以为还在用。ED2/ED4 断言已同步。 */
+
+/* ---------- 手绘下划线 ----------
+   一条略微手抖的曲线，用 SVG data-uri 画（不引外部资源、不依赖字体）。
+   曲线在 120×8 的画布里来回摆，repeat-x 时接缝处 y 都是 4 附近，看不出断点。 */
+/* 第二十八轮：笔迹 stroke-width 1.5 → 1.2，并且**每页只留一处**
+   （正文里那几处从生成器里删掉了，见 build-*-page.py 的注释）。
+   上一版一屏里三条荧光黄手绘线，视线被来回拽 —— 手绘线的价值在于「只有一处
+   是手写的」，处处都是就等于没有。 */
+.ed-ul {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='8' viewBox='0 0 120 8'><path d='M1 5.2 C 18 2.4, 34 6.6, 52 4.4 S 86 6.4, 104 3.6 S 118 5.4, 119 4.6' fill='none' stroke='%23e3ff39' stroke-width='1.2' stroke-linecap='round'/></svg>");
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  /* 笔迹粗细用**绝对单位**，不用 em —— 第一版写 0.55em，
+     正文 15px 上是 8px（正常），到 48px 的引题上被放大成 26px，
+     一条粗黄带压在「好故事」下面，像高亮笔而不是手绘线。 */
+  background-size: 14rem 0.55rem;
+  padding-bottom: 0.18em;
+  color: #fff;
+}
+/* 大字号上的那一档（页头引题、区块大标题）：笔迹略加粗，但有限度 */
+.about-lede .ed-ul,
+.type-heading-lg .ed-ul,
+.page-title .ed-ul {
+  background-size: 16rem 0.9rem;
+}
+
+/* ---------- 首字下沉 ----------
+   中文首字放大下沉是杂志最老派的招，放在「关于我们」正文第一段最合适。
+   ::first-letter 是浮动的，**不会**改变 <p> 自己的 rect.left。 */
+/* 字号 3.6em（15px 正文上是 54px）：刚好占满三行，再大第一行就只剩几个字。 */
+.about-body > p:first-child::first-letter {
+  float: left;
+  font-family: var(--font-cjk);
+  font-weight: 900;
+  font-size: 3.6em;
+  line-height: 0.86;
+  margin: 0.06em 0.5rem 0 0;
+  color: #fff;
+}
+
+/* ---------- 页边批注 ----------
+   「手搓」的小便签：一条竖线 + 等宽小字 + 一枚 ↳。
+   内容是**从正文里抽的关键词**，不是新写的主张 —— 用户要求文案不动，
+   这里只做包装，不往里加新的事实。 */
+/* 第二十八轮：批注降噪 —— 去掉「↳ 关键词」那一行小标题（生成器里一并删），
+   只留一行极淡的等宽小字。它现在的位置是「正文结束后的一段空白里的一句话」，
+   不是第二个信息块；字号 11 → 10px、灰度 0.42 → 0.3、边距拉到 4rem。 */
+.ed-note {
+  margin-top: 4rem;
+  padding-left: 2rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.9;
+  letter-spacing: 0.14em;
+  /* 0.3 → 0.38：10px 的字在纯黑上，0.3 的对比度只有 3.5:1 左右，
+     截图里几乎读不出来（探针量不出「读不读得到」，只能靠这一行注释记着）。
+     奢侈品画册的注释是「淡但可读」，不是「淡到消失」。 */
+  color: rgba(255, 255, 255, 0.38);
+  max-width: 54ch;
+}
+/* b 标签已从生成器移除，这条规则留着是给「万一有人又加回来」兜底：
+   即便加回来也不再是荧光黄的块级标题，而是行内的一枚前缀。 */
+.ed-note b {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.34);
+  letter-spacing: 0.2em;
+  margin-right: 0.8em;
+}
+
+/* ---------- 页头元信息条 ----------
+   像档案封面上的一行编码：FILE / ABOUT · AXiE STUDIO · 2026 */
+/* 第二十八轮：字距 0.18 → 0.28em、灰度 0.34 → 0.26、下方留白 2.4 → 3.6rem。
+   这行是「档案编码」性质的装饰，奢侈品画册里它几乎要凑近才看得见 ——
+   看得太清就变成正文的一部分了。 */
+.ed-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  color: rgba(255, 255, 255, 0.26);
+  margin-bottom: 3.6rem;
+}
+.ed-meta-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* ---------- 初心三条：前面加一枚手绘箭头 ---------- */
+.about-creed-line::before {
+  content: "↳";
+  font-family: var(--font-mono);
+  font-size: 0.5em;
+  color: var(--accent);
+  vertical-align: 0.3em;
+  margin-right: 0.8em;
+}
+
+/* ---------- 四张卡：悬停时顶线转荧光黄 ---------- */
+.about-card { transition: border-color 0.25s linear; }
+.about-card:hover { border-top-color: var(--accent); }
+.about-card:hover .about-num { border-color: var(--accent); }
+
+/* ---------- 流程四步：步骤之间的虚线换成「点 + 短横」 ---------- */
+@media (min-width: 64rem) {
+  .process-step:not(:last-child)::after {
+    width: 2rem;
+    right: -2.2rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.28);
+    background: none;
+    height: 0;
+  }
+}
+
+/* ---------- WHAT WE DO 四组：序号用 CSS counter 自动生成 ----------
+   不写进 DOM 的原因同 Q./A.：M4 断言拿 .accordion-trigger > span:first-child
+   的 textContent 比 indexOf("策略与创意") === 0，序号一进 DOM 就把它顶掉。
+   counter 只生成渲染用的内容，textContent 读不到。 */
+.js-capabilities { counter-reset: cap; }
+.js-capabilities .accordion-item { counter-increment: cap; }
+.js-capabilities .accordion-trigger > span:first-child::before {
+  content: "0" counter(cap);
+  font-family: var(--font-mono);
+  font-size: 0.42em;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  vertical-align: 0.3em;
+  margin-right: 0.8em;
+}
+
+/* ---------- 手风琴：这两页走「分页」而不是「分栏」的语气 ----------
+   第二十八轮：.accordion-item 全站是 4px 分栏线（那是列表页的语气），
+   但这两页是画册，分隔线要 1px。所以只覆盖 .ed-sec 内的手风琴，
+   不动全站规则 —— 别处（品牌页的能力列表）还是原来那套。
+   问答行上下留白 2.4 → 3.6rem、答案底部 2.4 → 4.8rem、答案行宽收到 58ch：
+   FAQ 四条本来就短，留白撑开后每一条都像被单独排版过，而不是挤在列表里。 */
+.ed-sec .accordion-item { border-top-width: 1px; }
+/* 手风琴问句：站内 .accordion-trigger 用的是 heading（Anton）+ 3.2rem。
+   Anton **没有中文字形**，这两页的问题句又全是中文 —— 中文会 fallback 到
+   系统字体，字号一大就露馅（第二十三轮在 .page-title 上踩过同一个坑）。
+   所以这里覆盖成 CJK 字体，并把字号收到 2.8rem：32px 的中文长句在 58ch
+   的窄栏里要折三行，压到 28px 才像画册的问答。
+   改字号不影响 N-* 断言 —— 它的容差本来就按字号折算（字号越大容差越大）。 */
+.ed-sec .accordion-trigger {
+  font-family: var(--font-cjk);
+  font-size: clamp(2rem, 2.4vw, 2.8rem);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  padding-block: 4.8rem;
+}
+.ed-sec .accordion-panel { padding-bottom: 5.6rem; max-width: 58ch; }
+.ed-sec .accordion-panel p { line-height: 1.95; }
+
+/* ---------- 答案区：左侧一道竖线，和页边批注同一套语言 ----------
+   第二十八轮：竖线从 0.16 淡到 0.12、内缩从 1.6rem 放到 2rem ——
+   答案区本身已经有 4.8rem 的底部留白，竖线再深就成了第二个视觉重心。 */
+.js-accordion:not(.js-capabilities) .accordion-panel > p {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  padding-left: 2rem;
+}
+
+/* =============================================================
+   第二十九轮：内页「整个布局框架」重做 —— 章节骨架 / 页边索引 / 内容分层
+   -------------------------------------------------------------
+   前两轮做的都是「包装」（第二十七轮加装饰、第二十八轮减装饰和拉留白），
+   这一轮动的是**框架本身**。原来两页十来个区块共用同一种模板
+   （一枚小字引题 + 大标题 + 正文），区块之间只有「间距大小」一个变量，
+   滚到中间就分不清读到第几节。
+
+   新的骨架是三层：
+
+     § 01 ┊ 我们是谁          ① 章节栏头：巨型空心编号 + 竖线 + 中英名
+          WHO WE ARE             （用**尺度反差**代替分隔线来区分区块）
+     ──────────────────────── ② 1px 发丝线
+     内容                      ③ 按内容类型选版式（见下）
+                   — 01 / 04 —   画册页码
+
+   内容分层：三种版式**按内容选**，不是随机挑
+     · 正文       窄栏 56ch / 行高 2.0 + 首字下沉 + 页边批注
+     · 四大学科   2×2 大网格（撤掉 4 列：230px 的卡放不下英文标题）
+     · 流程四步   纵向索引表（编号 | 标题 | 副标题右对齐）
+
+   页边多出两件东西（都由 assets/js/folio.js 动态生成，fixed 定位）
+     · .ed-rail      右侧章节索引轨，跟随滚动高亮，可点击跳转
+     · .ed-progress  顶部 1px 荧光黄阅读进度线
+
+   ⚠️ 装饰仍然遵守第二十七轮立下的两条硬约束：
+     ① 不能把 N-* 断言那 11 组选择器的 rect.left 推离左边距
+        （所以新东西一律 fixed / absolute，或者只加上下方向的留白）；
+     ② Q./A. 与能力序号只能用伪元素（M1/M4 按 textContent 逐条比）。
+   ============================================================= */
+
+/* ---------- 页头文字块：定位上下文 + 四角印刷裁切标记 ----------
+   裁切标记（crop mark）是印刷厂裁纸用的角线，压在文字块四角，
+   一秒把「网页」的语气拉到「印刷品」上。
+   四枚共用一份样式，靠 scale 翻转出另外三个方向（左上那枚是正的），
+   省得写四遍；绝对定位，不参与布局。
+
+   为什么是框 .ed-frame 而不是框整个 <header>：header 顶上有 .pt-header
+   （= 站点 fixed header 的高度 + 4rem），把角标放在 header 的最顶端，
+   它会被 z-index:100 的站点 header 直接盖住 —— 白画。
+   框住**文字块本身**（在安全区之下）既不会被遮，语义也更准：
+   被「裁切」的是这块内容，不是那片留白。
+   padding 只给上下（左右必须 0，否则会推走 .page-title 的 rect.left）。 */
+.ed-frame { position: relative; padding: 3.2rem 0 2.4rem; }
+.ed-crop {
+  position: absolute;
+  width: 1.4rem;
+  height: 1.4rem;
+  pointer-events: none;
+}
+.ed-crop::before,
+.ed-crop::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: rgba(255, 255, 255, 0.18);
+}
+.ed-crop::before { width: 100%; height: 1px; }
+.ed-crop::after { width: 1px; height: 100%; }
+.ed-crop.is-tl { left: 0; top: 0; }
+.ed-crop.is-tr { right: 0; top: 0; transform: scaleX(-1); }
+.ed-crop.is-bl { left: 0; bottom: 0; transform: scaleY(-1); }
+.ed-crop.is-br { right: 0; bottom: 0; transform: scale(-1); }
+/* 窄屏四角会贴到正文，只留顶上两枚 */
+@media (max-width: 63.99rem) {
+  .ed-crop.is-bl, .ed-crop.is-br { display: none; }
+}
+
+/* ---------- 画册页码（folio） ----------
+   每个区块末尾一行极淡的「— 01 / 04 —」，右对齐。
+   页码的作用不是告诉读者数字，而是让他**知道这一节结束了**：
+   两个区块之间那 12rem 留白配上页码才像「翻页」，没有页码就只是「断了」。 */
+.ed-folio {
+  margin-top: 6.4rem;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.18);
+}
+
+/* ---------- 右侧章节索引轨（由 folio.js 生成） ----------
+   像精装书书口上的阶梯索引（thumb index）：窄窄一条贴在右边缘，
+   「读到第几节」不再需要滚回去看栏头。
+   只在 ≥90rem 出现 —— 窄屏右边距只有 2rem，放不下还会压到正文。
+   fixed 定位：不占文档流，N-* 断言量的那些 rect.left 一个都不会动。 */
+.ed-rail { display: none; }
+@media (min-width: 90rem) {
+  .ed-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1.4rem;
+    position: fixed;
+    right: 2.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 45;
+  }
+}
+.ed-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: rgba(255, 255, 255, 0.26);
+  text-decoration: none;
+  transition: color 0.25s linear;
+}
+/* 每个编号后面挂一条 1.4rem 的短横线。当前章节的横线**拉长到 3.2rem**
+   并转成荧光黄 —— 高亮不靠换颜色，靠「这条线变长」，余光里也看得见。 */
+.ed-rail-item::after {
+  content: "";
+  display: block;
+  width: 1.4rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.45;
+  transition: width 0.25s var(--ease-expo-out);
+}
+.ed-rail-item:hover { color: rgba(255, 255, 255, 0.6); }
+.ed-rail-item.is-current { color: var(--accent); }
+.ed-rail-item.is-current::after { width: 3.2rem; opacity: 1; }
+
+/* ---------- 顶部阅读进度细线（由 folio.js 生成） ----------
+   1px，荧光黄，按滚动比例用 scaleX 增长 —— 不改 width，因为每帧都在变，
+   改 width 会触发重排。pointer-events: none，压在最上层也挡不住点击。 */
+.ed-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+.ed-progress > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+/* =============================================================
+   第三十轮：非对称编辑栅格 —— 打破「一律贴左」
+   -------------------------------------------------------------
+   前面三轮一直在「左对齐」这一件事里打转：第二十三轮左 → 第二十四轮居中 →
+   第二十五轮又左 → 第二十七/二十九轮在左对齐的前提下加装饰。
+   这一轮用户的原话是「排版不要死板据左侧」—— 于是**不再要求所有内容块
+   都从同一条左边距起排**，改成一套 12 列的非对称栅格：
+
+     ┃ §01           ┃                        ← 左窄索引栏（1–4 列）
+     ┃ 我们是谁      ┃  正文从第 5 列起        ← 内容按类型选起列
+     ┃ WHO WE ARE    ┃
+     ┃ ┊             ┃
+     ┃               ┃  不同的内容起不同的列：正文 5、初心 6、独白 7
+     ┃               ┃  → 一眼看过去有节奏，但没有一块是随手放的
+                              — 01 / 04 —       画册页码（右对齐）
+
+   为什么必须「非对称」而不是「居中」：居中会让所有区块共用一条中轴，
+   读起来比左对齐更单调；非对称栅格让**每一节的起笔位置都不同**，
+   视线在页面上是斜着往下走的，这才是画册/杂志的读法。
+
+   为什么又必须「落在栅格上」而不是随手缩进：随手缩进的偏移量没有公约数，
+   两块内容差 37px 这种数值，看着像 bug 不像设计。
+   verify-all 的 N-* 断言因此从「全部贴左边距」改成
+   「所有左边界必须落在 12 列栅格的某一列起点上，且至少有两种不同列位」。
+
+   边距也重做了（用户要求「整个布局框架边距重新设计」）：
+   全站 .gutter 是 2 / 3.2 / 4rem，这两页单独放大到
+   2.4 / 4 / 6.4 / 9.6 / 13rem —— 页边越宽，内容区越像一块「版面」，
+   右侧那条章节索引轨（right: 2.4rem）也就真正落在页边空白里，不再贴着正文。
+   ============================================================= */
+
+/* ---------- 外边距：画册版式的页边（只这两页） ----------
+   选择器写成 .ed-sec.gutter / .ed-head.gutter（权重 0,2,0）——
+   单靠 .ed-sec（0,1,0）要赌 components.css 和 base.css 的加载顺序。 */
+.ed-sec.gutter,
+.ed-head.gutter { padding-inline: 2.4rem; }
+@media (min-width: 48rem) {
+  .ed-sec.gutter, .ed-head.gutter { padding-inline: 4rem; }
+}
+@media (min-width: 64rem) {
+  .ed-sec.gutter, .ed-head.gutter { padding-inline: 6.4rem; }
+}
+@media (min-width: 90rem) {
+  .ed-sec.gutter, .ed-head.gutter { padding-inline: 9.6rem; }
+}
+@media (min-width: 128rem) {
+  .ed-sec.gutter, .ed-head.gutter { padding-inline: 13rem; }
+}
+
+/* ---------- 12 列栅格 ----------
+   <64rem 时退化成 block：手机上一行一列，inline 的 grid-column 自动失效，
+   不需要为窄屏再写一遍「全部 grid-column: 1 / -1」。 */
+.ed-grid { display: block; }
+@media (min-width: 64rem) {
+  .ed-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 2.4rem;
+  }
+}
+/* 栅格里的 .page-col 不再是「行宽上限容器」——
+   96rem 的 max-width 会让它比自己那一列窄，右对齐的页码就对不到列尾了。 */
+.ed-grid > .page-col { max-width: none; }
+
+/* ---------- 左窄索引栏 ----------
+   栏头那一列右侧压一道 1px 竖线，把「索引」和「正文」切成两栏 ——
+   这条竖线就是「不是所有内容都从左边距起排」最直接的视觉证据。
+   只给 padding-right（不给 left）—— N-* 断言盯着的那些盒子的
+   rect.left 一个都不会动。 */
+@media (min-width: 64rem) {
+  .ed-grid > [data-ed="head"] {
+    padding-right: 2.4rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+  }
+}
+/* 栏头下面垂一条 4.8rem 的荧光黄细引线，向下渐隐。
+   像书口索引往下指的那一笔，把栏头和它管的正文连起来。 */
+.ed-grid > [data-ed="head"]::after {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 4.8rem;
+  margin-top: 2rem;
+  background: linear-gradient(180deg, rgba(227, 255, 57, 0.45), rgba(227, 255, 57, 0));
+}
+
+/* ---------- 初心三条：阶梯状错列 ----------
+   三条主张错开两列往下走（1–8 / 3–10 / 5–12），斜着排下去。
+   三条**宽度一致**（都是 8 个子列），只挪起点 —— 宽度再变就成乱排了。
+   大字之间要么极紧要么极松，横向又错开之后，三条之间既不需要分隔线
+   也不需要编号，位置本身就说明了顺序。 */
+@media (min-width: 64rem) {
+  .about-creed {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 2rem;
+    row-gap: 3.2rem;
+  }
+  .about-creed-line:nth-child(1) { grid-column: 1 / 9; }
+  .about-creed-line:nth-child(2) { grid-column: 3 / 11; }
+  .about-creed-line:nth-child(3) { grid-column: 5 / 13; }
+}
+
+/* ---------- 四大学科：2×2 + 第二列整体下沉 ----------
+   错位是「非对称」最便宜也最有效的一招：两列顶线不在同一高度，
+   四张卡就不再是一张规格表，而是两块错开的版面。
+   注意是给**第 2 列**加 margin-top，不是给「第 2、4 张」加 ——
+   2 列栅格里第 2、4 张正好都在右列，效果一样，但按列写更不容易改错。 */
+@media (min-width: 48rem) {
+  .about-cards > .about-card:nth-child(even) { margin-top: 4.8rem; }
+}
+@media (min-width: 64rem) {
+  .about-cards > .about-card:nth-child(even) { margin-top: 8rem; }
+}
+
+/* ---------- 流程四步：副标题右对齐 ----------
+   纵向索引表的每一行 = 编号 ┊ 标题（左）┊ 副标题（右）。
+   右侧那一列把行「撑满」到列尾，读者才知道这一行到此为止 ——
+   副标题跟在标题后面反而像没排完。 */
+@media (min-width: 64rem) {
+  .process-step { align-items: baseline; }
+  .process-sub { text-align: right; }
+}
+
+/* ---------- 页头说明段的「孤儿字」 ----------
+   中文段落两行时常常甩出 4~6 个字单独占一行（「……这里一次说清。」），
+   在画册版式里非常扎眼 —— 一行只剩 5 个字，右边一大片空。
+   text-wrap: balance 会把两行摊成差不多长，这是排版里最省事的修法。
+   只给页头那一段，**不要**给正文（正文三五行，balance 反而会把
+   段落压成等宽的色块，失去「窄而松」的节奏）。 */
+.ed-head .page-col > p { text-wrap: balance; }
+
+/* =============================================================
+   第四十轮（用户第四条）：视频类型分类页 works.html
+   -------------------------------------------------------------
+   入口是品牌页轮播下方那枚「查看更多项目」（<a href="works.html">）。
+   这一页只有三块：分类标签墙 / 作品数 / 作品网格（网格直接复用
+   品牌页的 .work-card，样式不用重写）。
+   ============================================================= */
+.works-cats {
+  display: flex;
+  flex-wrap: wrap;
+  /* 「间距小一些」是用户这一轮对轮盘的口径，标签墙沿用同一套呼吸：
+     组内 1rem、行间 1rem —— 22 个标签在 1600 视口下正好排 3~4 行。 */
+  gap: 1rem;
+}
+.works-cat {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.06);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+  color: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.25s linear, border-color 0.25s linear,
+              background-color 0.25s linear, transform 0.4s var(--ease-expo-out);
+}
+.works-cat:hover { color: var(--accent); border-color: rgba(255, 255, 255, 0.42); }
+/* 标签后面的小数字（该类有几支作品） */
+.works-cat-n { font-size: 1.1rem; color: rgba(255, 255, 255, 0.42); }
+/* 当前分类：填成实心强调色，跟站内「选中态」同一套语言 */
+.works-cat.is-active {
+  color: #0a0c0d;
+  background-color: var(--accent);
+  background-image: none;
+  border-color: var(--accent);
+}
+.works-cat.is-active .works-cat-n { color: rgba(10, 12, 13, 0.62); }
+/* 该分类还没有作品时的占位 —— 不留一片空白，也不编造内容 */
+.works-empty {
+  margin-top: 2.4rem;
+  padding: 4rem 0;
+  text-align: center;
+  font-size: 1.4rem;
+  color: rgba(255, 255, 255, 0.45);
+}
