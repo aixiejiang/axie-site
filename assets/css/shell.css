@@ -1,0 +1,244 @@
+/* =============================================================
+   Header / 字标 / 抽屉 / 内容页通用排版
+   ============================================================= */
+
+.logotype {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: auto;
+  color: var(--foreground);
+}
+.logotype:hover { color: var(--accent); }
+
+.logo-glyph {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  color: var(--accent);
+}
+.logo-glyph svg { width: 100%; height: 100%; fill: currentColor; }
+
+.logo-type {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+@media (min-width: 48rem) {
+  .logo-type { font-size: 2rem; }
+  .logo-glyph { width: 1.6rem; height: 1.6rem; }
+}
+
+/* 图片 logo（AXiE 手写体抠图）
+   源图 3024×1296 里手写体只占中间 1629×935，四周全是透明留白，
+   所以必须先用宽度定尺寸 —— 用 height 会连留白一起缩放，视觉上永远很小。
+   资源已裁掉透明边距并统一为 1280×735（2x，比例 1.741）。
+
+   2026-09-27：首页与内页尺寸统一。之前这里 12/17/23/26rem，
+   而首页额外覆写成 6/7.2/8.4/9.6rem —— 同一个 logo 两处差 2.7 倍。
+   现在只留一套值（取原来首页那一档），首页的绝对定位规则不再改宽度。 */
+.logotype .logo-img {
+  display: block;
+  width: 6rem;
+  height: auto;
+  /* 黄色手写体压在视频上，用 drop-shadow 保证可读性 */
+  filter: drop-shadow(0 3px 14px rgba(0, 0, 0, 0.7));
+  transition: transform 0.4s var(--ease-expo-out);
+}
+.logotype:hover .logo-img { transform: scale(1.04); }
+@media (min-width: 48rem) {
+  .logotype .logo-img { width: 7.2rem; }
+}
+@media (min-width: 64rem) {
+  .logotype .logo-img { width: 8.4rem; }
+}
+@media (min-width: 80rem) {
+  .logotype .logo-img { width: 9.6rem; }
+}
+/* 首页：logo 要真正「占据左上角」。
+   做法是把它绝对定位到 header 左上角，这样：
+   - 它不再参与 header 的流式布局（不会把导航挤走）
+   - 尺寸可以按断点自由放大，也不会撑高 header
+   - 位置直接锚在左上角，与左侧 6 帧画廊同一条视觉轴线 */
+body[data-page="home"] .site-header .header-inner { position: relative; }
+body[data-page="home"] .logotype {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+}
+body[data-page="home"] .logotype:hover .logo-img { transform: scale(1.04); }
+/* 宽度不再单独覆写：与内页共用上面那一套断点值，保证两处 logo 一样大 */
+
+/* header 高度：logo 已缩小，恢复紧凑的呼吸高度。 */
+.site-header .header-inner { height: auto; min-height: 6rem; }
+@media (min-width: 48rem) { .site-header .header-inner { min-height: 7.2rem; } }
+@media (min-width: 64rem) { .site-header .header-inner { min-height: 8.4rem; } }
+@media (min-width: 80rem) { .site-header .header-inner { min-height: 9.6rem; } }
+
+/* 首页：header 内边距收窄，让 logo 贴到左上角；
+   左侧留出画廊走道，导航与 CTA 靠右，不与 logo 打架。 */
+body[data-page="home"] .site-header .gutter { padding-inline: 2.4rem; }
+@media (min-width: 48rem) {
+  body[data-page="home"] .site-header .gutter { padding-inline: 3.2rem; }
+}
+@media (min-width: 64rem) {
+  body[data-page="home"] .site-header .gutter { padding-inline: 4rem; }
+}
+@media (min-width: 80rem) {
+  body[data-page="home"] .site-header .gutter { padding-inline: 4.8rem; }
+}
+/* 首页 logo 缩小后，导航左侧的让位也同步收窄 */
+body[data-page="home"] .header-inner { padding-left: 7.6rem; }
+@media (min-width: 48rem) { body[data-page="home"] .header-inner { padding-left: 9rem; } }
+@media (min-width: 64rem) { body[data-page="home"] .header-inner { padding-left: 10.4rem; } }
+@media (min-width: 80rem) { body[data-page="home"] .header-inner { padding-left: 11.6rem; } }
+
+/* ---------- 语言拨片：让它在深色视频上依然清晰 ---------- */
+.lang-switch { flex: none; }
+
+/* =============================================================
+   语言浮标：始终钉在右上角
+   —— 之前它排在 header 的 CTA 组里，会被「联系我们 / Menu」挤，
+      换页时宽度变化还会让它左右晃。现在它是 body 直属 + fixed，
+      任何页面 / 断点位置恒定，且与导航栏垂直对齐。
+   ============================================================= */
+.lang-dock {
+  position: fixed;
+  /* 第三十一轮：与导航栏垂直居中对齐。
+     导航中心 = header padding-top(1.2rem) + .header-inner min-height/2，
+     所以这里取「中心 − 拨片高的一半（1.6rem）」：
+       <48rem  1.2 + 3.0 = 4.2 → 2.6rem
+       ≥48rem  1.2 + 3.6 = 4.8 → 3.2rem
+       ≥64rem  1.2 + 4.2 = 5.4 → 3.8rem
+       ≥80rem  1.2 + 4.8 = 6.0 → 4.4rem
+     改 header 的 padding-top 或 header-inner 的 min-height 时，
+     这四个数必须同步重算（J10 / I4 会量「语言浮标与导航是否同一中轴」）。 */
+  top: 2.6rem;
+  right: 2.4rem;
+  z-index: 70;              /* 高于 header(50) 与抽屉(60)，永远可见 */
+  pointer-events: auto;
+  /* 拨片是 inline-flex，外层若留着行高会把它压下去 1px，
+     与导航栏的中轴就差了这么一点（实测 60 vs 61）。 */
+  line-height: 0;
+}
+@media (min-width: 48rem) { .lang-dock { top: 3.2rem; right: 3.2rem; } }
+@media (min-width: 64rem) { .lang-dock { top: 3.8rem; right: 4rem; } }
+@media (min-width: 80rem) { .lang-dock { top: 4.4rem; right: 4.8rem; } }
+.lang-dock .lang-switch { display: block; }
+
+/* 声音开关 */
+.sound-toggle {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+}
+.sound-toggle .label { min-width: 6.4rem; text-align: center; }
+.sound-toggle .icon-box svg { fill: currentColor; }
+.sound-toggle .icon-box svg path[stroke] { fill: none; }
+.sound-toggle:hover { color: var(--accent); }
+.sound-toggle.is-on {
+  color: var(--accent);
+}
+.sound-toggle.is-on .icon-box {
+  background: rgba(227, 255, 57, 0.18);
+}
+
+.btn-link { display: inline-block; border-radius: 9999px; }
+.btn-link:hover { text-decoration: none; }
+
+.play-btn-size { width: 6.4rem; height: 6.4rem; }
+@media (min-width: 48rem) { .play-btn-size { width: 8rem; height: 8rem; } }
+
+/* 内容页顶部留白（避开固定 header）
+   第三十一轮：内页「导航栏下方这一块」整体收小 —— 原来 4rem / 8rem，
+   现在 2.8rem / 5.2rem（配合 header 本身也上移了 0.8rem）。 */
+.pt-header { padding-top: calc(var(--header-safe-area) + 2.8rem); }
+@media (min-width: 48rem) { .pt-header { padding-top: calc(var(--header-safe-area) + 5.2rem); } }
+
+/* 有全屏背景场景的页面：让 body 透出 -z-10 层 */
+body[data-page="liquid-engine"] { background: transparent; }
+
+/* 页面主内容最小高度，避免页脚上浮 */
+#main { position: relative; z-index: 1; min-height: 60lvh; }
+
+/* 抽屉链接 */
+.drawer-panel .drawer-link:last-of-type { border-bottom: 0; }
+
+/* 内容页：元信息行 */
+.meta-row {
+  display: flex;
+  gap: 0.8rem;
+  padding-block: 1.6rem;
+  border-top: 4px solid var(--border);
+}
+.meta-key {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  flex: 0 0 12rem;
+}
+.meta-val { font-size: 14px; }
+
+/* 新闻条目 */
+.news-item {
+  display: block;
+  border-top: 4px solid var(--border);
+  padding-block: 3.2rem;
+  transition: color 0.15s linear;
+}
+.news-item:hover { color: var(--accent); }
+.news-date { font-size: 11px; letter-spacing: 0.05em; color: rgba(255,255,255,0.4); margin-bottom: 1.2rem; }
+
+/* 能力卡片（Liquid Engine / About） */
+.feature-card {
+  border-top: 4px solid var(--border);
+  padding-top: 2.4rem;
+}
+.feature-num {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-bottom: 1.2rem;
+}
+
+/* 团队行 */
+.team-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2.4rem;
+  padding-block: 2.4rem;
+  border-top: 4px solid var(--border);
+  transition: color 0.15s linear;
+}
+.team-row:hover { color: var(--accent); }
+.team-name { font-family: var(--font-heading); font-size: 2.4rem; text-transform: uppercase; letter-spacing: -0.01em; }
+@media (min-width: 48rem) { .team-name { font-size: 3.2rem; } }
+
+/* 跨栏目 CTA
+   第三十一轮：整块收小一圈（padding 8rem → 5.6rem，字号 4.8/8 → 3.4/5.6rem）。
+   它本来就已经是绝对居中的（flex + justify/align center + text-align:center），
+   这里只收尺寸，不改对齐方式。 */
+.cross-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.8rem;
+  text-align: center;
+  padding-block: 5.6rem;
+}
+.cross-cta-title {
+  font-family: var(--font-heading);
+  font-size: 3.4rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+@media (min-width: 48rem) { .cross-cta-title { font-size: 5.6rem; } }
+.cross-cta-accent { color: var(--accent); text-decoration: underline; text-underline-offset: 0.12em; }
+.cross-cta:hover .cross-cta-accent { color: var(--foreground); }
