@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en" class="is-booting">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Project — AXiE</title>
+<meta name="description" content="A brand film project by AXiE — watch the film, read the brief, browse the stills." />
+<link rel="icon" type="image/png" href="assets/logo-axie.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@200;300;400;500;700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/css/base.css" />
+<link rel="stylesheet" href="assets/css/components.css" />
+<link rel="stylesheet" href="assets/css/shell.css" />
+</head>
+<body data-page="project">
+
+<div id="site-header"></div>
+<div id="site-drawer"></div>
+<div id="site-overlay"></div>
+
+<!--
+  独立项目页：直接滚动浏览，不是弹层。
+  结构与弹层（SLProjectView）完全一致 —— 播放器 / 退出 / 介绍 → 剧照 → 其他项目。
+  第四十四轮（用户第一条）：「去除左上后退按钮，退出按钮在视频右上角，
+  可以鼠标点击退出当前页面返回上一级」——
+    · 原来压在大标题上方那一条 `.proj-back`（左上角一行淡灰小字）**整块删掉**；
+    · 退出键挂到播放器**右上角内部**（.proj-exit），与弹层顶栏那枚同语言
+      （黄描边胶囊 + × 号 + 「退出」）；
+    · 它仍带 `.js-proj-back` 这个钩子类名 —— project-page.js 的文案/跳转绑定、
+      以及 verify-all / verify-brand 里那些 `.js-proj-back` 判据都还认它，
+      改的是**位置与文案**，不是接线的名字。
+    · 页头让位的那段 `--header-safe-area` 上边距从被删掉的这一层挪到
+      `.proj-page` 上，避免内容被固定页头压住。
+-->
+<main id="main">
+
+  <div class="proj-page gutter" style="padding-top:calc(var(--header-safe-area) + 2.4rem)">
+    <div class="proj-player js-proj-player">
+      <a class="proj-exit js-proj-back" href="brand.html" aria-label="退出" title="退出">
+        <span class="proj-exit-icon"><svg aria-hidden="true"><use href="#close"></use></svg></span>
+        <span class="proj-exit-label js-proj-back-label" data-i18n="btn.exit">退出</span>
+      </a>
+      <video class="pv-video js-pv-video" playsinline webkit-playsinline preload="auto"></video>
+      <div class="pv-poster js-pv-poster"></div>
+      <button class="pv-bigplay js-pv-bigplay" type="button" aria-label="Play">
+        <span class="pv-bigplay-icon js-pv-bigplay-icon"></span>
+      </button>
+      <div class="pv-controls">
+        <button class="pv-ctl js-pv-toggle" type="button" aria-label="Pause">
+          <span class="js-pv-toggle-icon"></span>
+        </button>
+        <div class="pv-scrub js-pv-scrub" role="slider" tabindex="0" aria-label="Seek">
+          <span class="pv-scrub-fill js-pv-scrub-fill"></span>
+        </div>
+        <span class="pv-time js-pv-time">00:00 / 00:00</span>
+        <button class="pv-ctl js-pv-sound" type="button" aria-label="Mute">
+          <span class="js-pv-sound-icon"></span>
+        </button>
+      </div>
+      <div class="pv-badge js-pv-badge"></div>
+    </div>
+
+    <!-- 项目介绍 / 剧照 / 其他项目 由 project-page.js 注入 -->
+    <div class="proj-content js-proj-content"></div>
+  </div>
+
+</main>
+
+<div id="site-footer"></div>
+
+<script src="assets/js/vendor/gsap.min.js"></script>
+<script src="assets/js/vendor/ScrollTrigger.min.js"></script>
+<script src="assets/js/vendor/lenis.min.js"></script>
+<script src="assets/js/vendor/lenis-snap.min.js"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/i18n-extra.js"></script>
+<script>window.SLi18nExtra && window.SLi18nExtra.install();</script>
+<script src="assets/js/scene.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/project.js"></script>
+<script src="assets/js/project-page.js"></script>
+</body>
+</html>
