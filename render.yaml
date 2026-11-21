@@ -1,0 +1,16 @@
+# Render Blueprint —— 静态站点（免费方案）
+# 用法：在 Render 控制台 New + → Blueprint → 选择本仓库；或 New + → Static Site 手工连接。
+# 站点是零构建纯静态，仓库根目录即发布目录。
+services:
+  - type: web
+    name: axie-site
+    runtime: static
+    plan: free
+    branch: main
+    staticPublishPath: .
+    buildCommand: ""
+    pullRequestPreviewsEnabled: false
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=3600
