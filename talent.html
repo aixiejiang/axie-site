@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN" data-lang="zh" data-page-node-id="NJEcFGSA3bEW6yDeRvPMUs">
+<head data-page-node-id="SdXBsBYeC3aWxxJChFEMSz">
+<meta charset="utf-8" data-page-node-id="YvfIDxON644zCNZ14WRRXs" />
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="U9UJyT63DSpDFydrC8FFGd" />
+<title>Digital Actor — AXiE</title>
+<meta name="description" content="AXIE 数字演员资料页：纯灰白棚拍超写实全身照、基本信息（年龄 / 性格 / 风格 / 适合）、同一张脸的三档景别近景与参演作品。" data-page-node-id="tXfhzINM6339BC9qlZLD3I" />
+<link rel="icon" type="image/png" href="assets/logo-axie.png" data-page-node-id="wUnbL66svwjZwbD9RDnXkt" />
+<link rel="preconnect" href="https://fonts.googleapis.com" data-page-node-id="CWyEeRiKybCskQfWkKxDpd" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-page-node-id="y3d358C29qJU5DNOwr57a7" />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@200;300;400;500;700;900&display=swap" rel="stylesheet" data-page-node-id="b0tAOVR827xBEgJUxpkmZI" />
+<link rel="stylesheet" href="assets/css/base.css" data-page-node-id="qYNCQzyrDuaAJGVSOggBlg" />
+<link rel="stylesheet" href="assets/css/components.css" data-page-node-id="er3gULd71agiKquzj0fR7P" />
+<link rel="stylesheet" href="assets/css/shell.css" data-page-node-id="7EaeYUOVN3ce1BVIhlPRc1" />
+</head>
+<body data-page="talent" data-page-node-id="lkACuvkwlfq7JWLzWDNCKp">
+
+<div id="site-header" data-page-node-id="OEowOkLUpGbw1BqDVwSXXr"></div>
+<div id="site-drawer" data-page-node-id="GKVr3Rs6s1EwhOiYIHPi0M"></div>
+<div id="site-overlay" data-page-node-id="tMl8PEcZPJIo55zqmYDzbS"></div>
+
+<main id="main" data-page-node-id="vFoIzOn1svel9jgAvjJknE">
+
+  <!-- 后退：回到上一级（全部数字演员页；从模特与演员页直接进来的话就回那一页）
+       第二十五轮：文案从「返回全部数字演员」改成「后退」——
+       按钮的 href 是**兜底**，正常情况下走的是 history.back()（assets/js/back.js），
+       所以它回的是「上一页」而不是「写死的那一页」，标签也就不该再写死是哪一个页面。 -->
+  <div class="gutter" style="padding-top:calc(var(--header-safe-area) + 2.4rem)" data-page-node-id="WXGo9U2Eb5SmVN7YX8I7Om">
+    <a class="proj-back js-page-back" href="actors.html" data-page-node-id="zJpPIFLsvG4P5wn1djxGRc">
+      <span class="proj-back-icon" aria-hidden="true" data-page-node-id="ksNyLIh0Ils6ZsJNZdGSQy"><svg data-page-node-id="93HtFc6h9so8BypCgVFKtU"><use href="#arrow" data-page-node-id="UaNJwlmDxEDoouUrE0YFN9"></use></svg></span>
+      <span data-i18n="btn.back" data-page-node-id="vifgJESD7kfoGgroE9iWGC">后退</span>
+    </a>
+  </div>
+
+  <!-- ============ HERO ============
+       第二十三轮：改成「人物居右、名称居左」——两块不再互相压叠。
+       左列自上而下：身份 badge → 超大字名称 → 一句话简介；
+       右列是超写实纯灰白棚拍全身照。
+       旧版是把名称居中铺满整行、被人物的腿挡掉中段（前景遮罩），
+       现在按需求把名称整体挪到左边，读起来更清楚。 -->
+  <section class="talent-hero2 gutter" aria-label="Talent profile" data-page-node-id="c3Y44WPANteBxnGVyFx6tN">
+    <div class="th-stage" data-page-node-id="L4cmp9VD6fELJNre7z0C4X">
+      <div class="th-type" data-page-node-id="QsWgJWrapdUYgXwhLEBOg2">
+        <span class="badge th-badge" data-page-node-id="zV6Ry9qCSgn3h7EXLDe4UT">
+          <span class="badge-dot" data-page-node-id="cXS5r4dQyorKPFPeXsXTil"></span>
+          <span class="js-talent-role" data-talent-field="role" data-page-node-id="yjUF6YG7WbGYnFwDX3zyOU">Model</span>
+        </span>
+        <div class="th-lower" data-page-node-id="7r3HmHsLqoswCroSgDnGPq">
+          <h1 class="th-name js-talent-name" data-talent-field="name" data-page-node-id="Eo6829NAF6REJzrixbORH6">Talent</h1>
+          <p class="th-bio js-talent-bio" data-talent-field="bio" data-page-node-id="pNyqUoh9OQvYXhfhwWts04"></p>
+        </div>
+      </div>
+      <figure class="th-figure" data-page-node-id="klkCZ3LAhP05fnpIUAIUwR">
+        <img class="js-talent-full" src="" alt="" decoding="async" data-page-node-id="bGLJKubGOZgHiUEAMkv4x6" />
+      </figure>
+    </div>
+    <div class="border-t-4" style="margin-top:3.2rem" data-page-node-id="c2xGbTrt3WFR3ZqMy1Xiqw"></div>
+  </section>
+
+  <!-- ============ 基本信息：年龄 / 性格 / 风格 ============ -->
+  <section class="gutter py-64" aria-label="Casting sheet" data-page-node-id="Z3Cix0EBEsFUcZNZRDb382">
+    <div class="grid grid-cols-12 gap-x-gutter" style="row-gap:3.2rem" data-page-node-id="BEFGP7rfqUAPQxV9y5Hqxb">
+      <div class="col-span-full md:col-span-2" data-page-node-id="IU2Fi2pn9aNbVKgKDdr1YC">
+        <span class="type-label text-fg-40" data-i18n="talent.basics" data-page-node-id="obtV1zMh36yGra042C7pvv">演员基本信息</span>
+      </div>
+      <div class="col-span-full md:col-span-8 md:col-start-4" data-page-node-id="zDZoHoCCnF1Q1wlSA2uubq">
+        <div class="tb-grid js-talent-basics" data-page-node-id="7VsFRpIuAETgZcEP3ASVAD"></div>
+        <div class="talent-meta js-talent-meta" data-page-node-id="LDDvJ5u01JmL6Fb4rA8KoE"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 分类维度（第三十六轮 · 用户第三条） ============
+       七个维度：人物身份 / 职业类型 / 人物气质 / 外貌风格 / 体型类型 /
+       性格类型 / 视觉风格。每行的标签来自 SL_DATA.talent[].dims（存 code），
+       显示文案走 i18n 的 tag.<维度>.<code> 表，随中英切换。
+       空维度自动跳过，所以不同演员的行数可以不一样。 -->
+  <section class="gutter py-64" aria-label="Casting dimensions" data-page-node-id="r36DimsSec">
+    <div class="grid grid-cols-12 gap-x-gutter" style="row-gap:3.2rem" data-page-node-id="r36DimsGrid">
+      <div class="col-span-full md:col-span-2" data-page-node-id="r36DimsKey">
+        <span class="type-label text-fg-40" data-i18n="talent.dims" data-page-node-id="r36DimsLabel">分类维度</span>
+      </div>
+      <div class="col-span-full md:col-span-8 md:col-start-4" data-page-node-id="r36DimsBody">
+        <p class="type-base text-fg-75 dim-note" data-i18n="talent.dimsNote" data-page-node-id="r36DimsNote">七条轴线，把每一张脸讲清楚 —— 身份、职业、气质、外貌、体型、性格、视觉风格。</p>
+        <div class="dim-grid js-talent-dims" data-page-node-id="r36DimsList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 同一张脸 · 三档景别近景 ============
+       第二十三轮：三联从「三个表情」重做成「三个角度 + 三种情绪」，三人一组重出素材。
+       第二十五轮：名册整体换成 15 位新人，每人只给了一张图 —— 没有多表情素材，
+       所以三联改成把同一张 2:3 底图按 近景 / 半身 / 全身 三档窗口裁出来
+       （用户当天选的「同图裁三档近景」方案：零成本、零走样）。
+       标签随之从「侧望平静 / 侧脸大笑 / 正视凝视」改成「近景 / 半身 / 全身」——
+       写「不同情绪」就是在说假话。 -->
+  <section class="gutter border-t-4 py-64" aria-label="Moods" data-page-node-id="E7DmwubvHKkrRkUvunZIUh">
+    <div class="grid grid-cols-12 gap-x-gutter" style="row-gap:3.2rem" data-page-node-id="l2Ek19bMGJ0VV85rkwEYRv">
+      <div class="col-span-full md:col-span-2" data-page-node-id="6SuB5L00C338EP1LcAY9Tq">
+        <span class="type-label text-fg-40" data-i18n="talent.moodTitle" data-page-node-id="R5qIGHNkLI4rle1Ry4U1Rr">同一张脸 · 三档景别</span>
+      </div>
+      <div class="col-span-full md:col-span-8 md:col-start-4" data-page-node-id="eU2MJaW2hnv0qX0yJNlFCQ">
+        <p class="type-base text-fg-75 mood-note" data-i18n="talent.moodNote" data-page-node-id="FhzEI9zvkOwuSN8u7OhrAB">同一组灯位、同一张脸 —— 从近景到全身。</p>
+        <div class="mood-grid js-talent-moods" data-page-node-id="0Wfr9ccOLZHkVhGHa75OqT"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 参演作品 ============ -->
+  <section class="talent-works gutter border-t-4 py-64" aria-label="Filmography" data-page-node-id="uCp2247XVzbVsdkWBDVKIJ">
+    <div class="talent-works-head" data-page-node-id="kQp6OFan0pkRur9UtXjqcl">
+      <h2 class="talent-works-title" data-page-node-id="CQjv1iw26XkMXjDdN1eKh4">
+        <span data-i18n="talent.works" data-page-node-id="CjOE55DkBy6LNEZumAgVym">参加作品</span>
+        <span class="talent-works-count js-talent-count" data-page-node-id="xsEGw3Zp0FaFxI32p66C5A">00</span>
+      </h2>
+    </div>
+    <div class="grid grid-cols-12 gap-x-gutter js-talent-works" data-page-node-id="VC7VXHwe6bIpdQDO87HzR7"></div>
+  </section>
+
+  <!-- 上一位 / 下一位 -->
+  <nav class="talent-nav gutter border-t-4" aria-label="Talent navigation" data-page-node-id="1neXc0I2NyEfKcK5ZXGIv4">
+    <a class="talent-nav-link js-talent-prev" href="#" data-page-node-id="IV2GIAWSgzvocJ0YGxM7WY">
+      <span class="talent-nav-key" data-page-node-id="73Kjr3JXrH4CGABfhHPMsy">Prev</span>
+      <span class="talent-nav-name js-talent-prev-name" data-page-node-id="dsqmGa1xkxDZD15PD4YGUY"></span>
+    </a>
+    <a class="talent-nav-link is-next js-talent-next" href="#" data-page-node-id="QF7ZhmDDlgjKBdEXTX6yuG">
+      <span class="talent-nav-key" data-page-node-id="1WFsg4XaEvsoW5EEDfLALT">Next</span>
+      <span class="talent-nav-name js-talent-next-name" data-page-node-id="AIPaHEkF6zPJaHmhSCEhJ7"></span>
+    </a>
+  </nav>
+
+</main>
+
+<div id="site-footer" data-page-node-id="cPPSCe6HJB770QhVTfbaLc"></div>
+
+<script src="assets/js/vendor/gsap.min.js"></script>
+<script src="assets/js/vendor/ScrollTrigger.min.js"></script>
+<script src="assets/js/vendor/lenis.min.js"></script>
+<script src="assets/js/vendor/lenis-snap.min.js"></script>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/i18n-extra.js"></script>
+<script>window.SLi18nExtra && window.SLi18nExtra.install();</script>
+<script src="assets/js/scene.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/back.js"></script>
+<script src="assets/js/project.js"></script>
+<script src="assets/js/talent.js"></script>
+</body>
+</html>
